@@ -1,0 +1,30 @@
+{
+  "tests": [
+    {
+      "name": "Get all knowledge base entries",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": [],
+      "bodyMatcher": "type"
+    },
+    {
+      "name": "Create knowledge entry",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "event_id": 1,
+        "content_type": "pain_points",
+        "title": "Проблемы целевой аудитории",
+        "content": "Нет времени на рутину",
+        "source": "Customer interviews"
+      },
+      "expectedStatus": 201,
+      "expectedBody": {
+        "id": "number",
+        "content_type": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
