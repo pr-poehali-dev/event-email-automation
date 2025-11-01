@@ -17,11 +17,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const API_URLS = {
   events: 'https://functions.poehali.dev/4a92f7e3-3ff9-4318-8cc4-42c5c3c013a7',
   templates: 'https://functions.poehali.dev/a9e49384-2582-40e1-878d-078fcb5d5f70',
   knowledge: 'https://functions.poehali.dev/8575e4c9-695e-4d25-bca9-656ef206c58e',
+  contentTypes: 'https://functions.poehali.dev/0061ea7c-e756-4d4f-8741-3978293a72b9',
 };
 
 type Event = {
@@ -38,11 +40,15 @@ type Event = {
 type Template = {
   id: number;
   event_id: number;
+  event_name: string;
   name: string;
   type: string;
   subject_template: string;
   cta_text: string;
   cta_color: string;
+  content_type_id: number;
+  content_type_name: string;
+  html_content: string;
   slots: any[];
 };
 
@@ -55,19 +61,30 @@ type KnowledgeEntry = {
   source: string;
 };
 
+type ContentType = {
+  id: number;
+  name: string;
+  description: string;
+  icon: string;
+  templates_count: number;
+};
+
 const Index = () => {
   const [activeSection, setActiveSection] = useState('events');
   const [events, setEvents] = useState<Event[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [knowledge, setKnowledge] = useState<KnowledgeEntry[]>([]);
+  const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     loadEvents();
     loadTemplates();
     loadKnowledge();
+    loadContentTypes();
   }, []);
 
   const loadEvents = async () => {
@@ -75,6 +92,9 @@ const Index = () => {
       const response = await fetch(API_URLS.events);
       const data = await response.json();
       setEvents(data);
+      if (data.length > 0 && !selectedEvent) {
+        setSelectedEvent(data[0].id);
+      }
     } catch (error) {
       console.error('Failed to load events:', error);
     }
@@ -97,6 +117,16 @@ const Index = () => {
       setKnowledge(data);
     } catch (error) {
       console.error('Failed to load knowledge:', error);
+    }
+  };
+
+  const loadContentTypes = async () => {
+    try {
+      const response = await fetch(API_URLS.contentTypes);
+      const data = await response.json();
+      setContentTypes(data);
+    } catch (error) {
+      console.error('Failed to load content types:', error);
     }
   };
 
@@ -178,13 +208,39 @@ const Index = () => {
     }
   };
 
+  const createContentType = async (formData: any) => {
+    setLoading(true);
+    try {
+      const response = await fetch(API_URLS.contentTypes, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = await response.json();
+      setContentTypes([...contentTypes, data]);
+      setDialogOpen(false);
+      toast({
+        title: 'Тип контента создан',
+        description: 'Новый тип контента успешно добавлен',
+      });
+    } catch (error) {
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось создать тип контента',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const menuItems = [
     { id: 'events', label: 'События', icon: 'Calendar' },
+    { id: 'content-types', label: 'Типы контента', icon: 'Layers' },
     { id: 'templates', label: 'Шаблоны', icon: 'FileText' },
-    { id: 'content', label: 'Контент', icon: 'BookOpen' },
+    { id: 'content', label: 'База знаний', icon: 'BookOpen' },
     { id: 'campaigns', label: 'Рассылки', icon: 'Send' },
     { id: 'analytics', label: 'Аналитика', icon: 'BarChart3' },
-    { id: 'integrations', label: 'Интеграции', icon: 'Puzzle' },
   ];
 
   const getStatusColor = (status: string) => {
@@ -340,16 +396,10 @@ const Index = () => {
                 <Button
                   variant="outline"
                   className="flex-1 border-purple-200 text-purple-700 hover:bg-purple-50"
+                  onClick={() => setSelectedEvent(event.id)}
                 >
-                  <Icon name="Edit" size={16} className="mr-2" />
-                  Редактировать
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1 border-purple-200 text-purple-700 hover:bg-purple-50"
-                >
-                  <Icon name="Send" size={16} className="mr-2" />
-                  Отправить
+                  <Icon name="Eye" size={16} className="mr-2" />
+                  Выбрать
                 </Button>
               </div>
             </div>
@@ -378,11 +428,138 @@ const Index = () => {
     </div>
   );
 
-  const renderTemplates = () => (
+  const renderContentTypes = () => (
     <div>
       <div className="mb-8 animate-fade-in">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-3xl font-bold text-gray-900">Шаблоны</h2>
+          <h2 className="text-3xl font-bold text-gray-900">Типы контента</h2>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90 shadow-lg shadow-purple-500/25">
+                <Icon name="Plus" size={18} className="mr-2" />
+                Создать тип
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Новый тип контента</DialogTitle>
+                <DialogDescription>
+                  Создайте новый тип контента для классификации писем
+                </DialogDescription>
+              </DialogHeader>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  createContentType({
+                    name: formData.get('name'),
+                    description: formData.get('description'),
+                    icon: formData.get('icon'),
+                  });
+                }}
+                className="space-y-4 pt-4"
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="ct-name">Название типа</Label>
+                  <Input id="ct-name" name="name" placeholder="Например: promo_offer" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ct-description">Описание</Label>
+                  <Textarea
+                    id="ct-description"
+                    name="description"
+                    placeholder="Для чего используется этот тип"
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ct-icon">Иконка</Label>
+                  <Select name="icon" defaultValue="Mail">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Mail">Mail</SelectItem>
+                      <SelectItem value="Bell">Bell</SelectItem>
+                      <SelectItem value="Megaphone">Megaphone</SelectItem>
+                      <SelectItem value="MessageSquare">MessageSquare</SelectItem>
+                      <SelectItem value="CheckCircle">CheckCircle</SelectItem>
+                      <SelectItem value="Heart">Heart</SelectItem>
+                      <SelectItem value="Gift">Gift</SelectItem>
+                      <SelectItem value="Star">Star</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90"
+                >
+                  {loading ? 'Создание...' : 'Создать тип'}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+        <p className="text-gray-600">Типы контента определяют назначение и структуру писем</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {contentTypes.map((type, index) => (
+          <Card
+            key={type.id}
+            className="group hover:shadow-xl transition-all duration-300 border-gray-200 hover:border-purple-300 animate-scale-in"
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+                    <Icon name={type.icon} size={24} className="text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">{type.name}</h3>
+                    <p className="text-sm text-gray-600">{type.description}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-sm pt-3 border-t border-gray-100">
+                <span className="text-gray-600">Шаблонов</span>
+                <Badge className="bg-purple-500/10 text-purple-600">{type.templates_count}</Badge>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {contentTypes.length === 0 && (
+        <Card className="p-12 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+            <Icon name="Layers" size={32} className="text-purple-500" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Нет типов контента</h3>
+          <p className="text-gray-600 mb-6">Создайте первый тип для классификации писем</p>
+          <Button
+            onClick={() => setDialogOpen(true)}
+            className="bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90"
+          >
+            <Icon name="Plus" size={18} className="mr-2" />
+            Создать тип
+          </Button>
+        </Card>
+      )}
+    </div>
+  );
+
+  const renderTemplates = () => (
+    <div>
+      <div className="mb-8 animate-fade-in">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900">Шаблоны писем</h2>
+            <p className="text-gray-600 mt-1">HTML-шаблоны с переменными для AI-генерации</p>
+          </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90 shadow-lg shadow-purple-500/25">
@@ -390,19 +567,29 @@ const Index = () => {
                 Создать шаблон
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Новый шаблон</DialogTitle>
                 <DialogDescription>
-                  Настройте HTML-шаблон для автоматической генерации писем
+                  Создайте HTML-шаблон с переменными вида {'{'}{'{'} variable {'}'}{'}'}
                 </DialogDescription>
               </DialogHeader>
+
+              <Alert className="my-4 border-blue-200 bg-blue-50">
+                <Icon name="Info" size={16} className="text-blue-600" />
+                <AlertDescription className="text-sm text-blue-900 ml-2">
+                  <strong>Как работает:</strong> AI заполняет переменные контентом из базы знаний. 
+                  Примеры: {'{'}{'{'} event_name {'}'}{'}'},  {'{'}{'{'} speaker_bio {'}'}{'}'},  {'{'}{'{'} key_benefits {'}'}{'}'}.
+                </AlertDescription>
+              </Alert>
+
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   const formData = new FormData(e.currentTarget);
                   createTemplate({
-                    event_id: events[0]?.id || null,
+                    event_id: selectedEvent,
+                    content_type_id: formData.get('content_type_id'),
                     name: formData.get('name'),
                     type: formData.get('type'),
                     subject_template: formData.get('subject_template'),
@@ -414,46 +601,80 @@ const Index = () => {
                 className="space-y-4 pt-4"
               >
                 <div className="space-y-2">
-                  <Label htmlFor="template-name">Название шаблона</Label>
-                  <Input id="template-name" name="name" placeholder="Например: Приглашение" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="template-type">Тип контента</Label>
-                  <Select name="type" defaultValue="invitation">
+                  <Label>Событие</Label>
+                  <Select
+                    value={selectedEvent?.toString()}
+                    onValueChange={(v) => setSelectedEvent(parseInt(v))}
+                  >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Выберите событие" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="invitation">Приглашение</SelectItem>
-                      <SelectItem value="reminder">Напоминание</SelectItem>
-                      <SelectItem value="announcement">Анонс</SelectItem>
-                      <SelectItem value="followup">Дополнение</SelectItem>
+                      {events.map((event) => (
+                        <SelectItem key={event.id} value={event.id.toString()}>
+                          {event.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="subject">Тема письма (шаблон)</Label>
+                  <Label htmlFor="content_type_id">Тип контента</Label>
+                  <Select name="content_type_id" required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите тип" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contentTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id.toString()}>
+                          <div className="flex items-center gap-2">
+                            <Icon name={type.icon} size={16} />
+                            {type.description}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="template-name">Название шаблона</Label>
+                  <Input id="template-name" name="name" placeholder="Например: Приглашение v1" required />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="template-type">Ключ типа (slug)</Label>
+                  <Input id="template-type" name="type" placeholder="Например: invitation_v1" required />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subject">Тема письма</Label>
                   <Input
                     id="subject"
                     name="subject_template"
-                    placeholder="Например: Приглашение на {{event_name}}"
+                    placeholder="Приглашение на {{'{'}{'{'}event_name{'}'}{'}'}"
                     required
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="cta">Текст кнопки CTA</Label>
-                  <Input id="cta" name="cta_text" placeholder="Например: Зарегистрироваться" />
+                  <Label htmlFor="cta">Текст CTA кнопки</Label>
+                  <Input id="cta" name="cta_text" placeholder="Зарегистрироваться" />
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="html">HTML контент</Label>
                   <Textarea
                     id="html"
                     name="html_content"
-                    placeholder="<html><body>{{content}}</body></html>"
-                    rows={6}
+                    placeholder="<h1>{{'{'}{'{'}event_name{'}'}{'}'}&#10;&#10;<p>{{'{'}{'{'}event_description{'}'}{'}'}</p>&#10;&#10;<a href='#' style='background:#BB35E0'>{{'{'}{'{'}cta_text{'}'}{'}'}</a>"
+                    rows={10}
                     required
+                    className="font-mono text-sm"
                   />
                 </div>
+
                 <Button
                   type="submit"
                   disabled={loading}
@@ -465,10 +686,9 @@ const Index = () => {
             </DialogContent>
           </Dialog>
         </div>
-        <p className="text-gray-600">Управляйте HTML-шаблонами для разных типов писем</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {templates.map((template, index) => (
           <Card
             key={template.id}
@@ -478,45 +698,72 @@ const Index = () => {
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{template.name}</h3>
-                  <Badge className="bg-purple-500/10 text-purple-600" variant="secondary">
-                    {template.type}
-                  </Badge>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
+                    <Badge className="bg-purple-500/10 text-purple-600" variant="secondary">
+                      {template.content_type_name || template.type}
+                    </Badge>
+                    <Badge className="bg-blue-500/10 text-blue-600" variant="secondary">
+                      {template.event_name}
+                    </Badge>
+                  </div>
                 </div>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                   <Icon name="MoreVertical" size={18} />
                 </Button>
               </div>
 
-              <div className="space-y-3 mb-4">
-                <div className="text-sm">
-                  <span className="text-gray-600">Тема:</span>
-                  <p className="font-medium text-gray-900 mt-1">{template.subject_template}</p>
-                </div>
-                {template.cta_text && (
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-3">
                   <div className="text-sm">
-                    <span className="text-gray-600">CTA кнопка:</span>
-                    <div className="mt-2">
-                      <Button
-                        size="sm"
-                        style={{ backgroundColor: template.cta_color }}
-                        className="pointer-events-none"
-                      >
-                        {template.cta_text}
-                      </Button>
+                    <span className="text-gray-600 font-medium">Тема:</span>
+                    <p className="text-gray-900 mt-1">{template.subject_template}</p>
+                  </div>
+                  {template.cta_text && (
+                    <div className="text-sm">
+                      <span className="text-gray-600 font-medium">CTA кнопка:</span>
+                      <div className="mt-2">
+                        <Button
+                          size="sm"
+                          style={{ backgroundColor: template.cta_color }}
+                          className="pointer-events-none text-white"
+                        >
+                          {template.cta_text}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-sm">
+                    <span className="text-gray-600 font-medium">HTML превью:</span>
+                    <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200 max-h-32 overflow-y-auto">
+                      <code className="text-xs text-gray-700 whitespace-pre-wrap break-words">
+                        {template.html_content?.substring(0, 200)}...
+                      </code>
                     </div>
                   </div>
-                )}
-                <div className="text-sm">
-                  <span className="text-gray-600">Слотов контента:</span>
-                  <span className="font-medium text-gray-900 ml-2">{template.slots?.length || 0}</span>
                 </div>
               </div>
 
-              <Button variant="outline" className="w-full border-purple-200 text-purple-700 hover:bg-purple-50">
-                <Icon name="Edit" size={16} className="mr-2" />
-                Редактировать шаблон
-              </Button>
+              <Alert className="border-purple-200 bg-purple-50">
+                <Icon name="Sparkles" size={16} className="text-purple-600" />
+                <AlertDescription className="text-sm text-purple-900 ml-2">
+                  AI заполнит все переменные из базы знаний события "{template.event_name}"
+                </AlertDescription>
+              </Alert>
+
+              <div className="flex gap-2 mt-4">
+                <Button variant="outline" className="flex-1 border-purple-200 text-purple-700 hover:bg-purple-50">
+                  <Icon name="Edit" size={16} className="mr-2" />
+                  Редактировать
+                </Button>
+                <Button variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+                  <Icon name="Sparkles" size={16} className="mr-2" />
+                  Генерировать письмо
+                </Button>
+              </div>
             </div>
           </Card>
         ))}
@@ -528,7 +775,7 @@ const Index = () => {
             <Icon name="FileText" size={32} className="text-purple-500" />
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">Нет шаблонов</h3>
-          <p className="text-gray-600 mb-6">Создайте первый шаблон для генерации писем</p>
+          <p className="text-gray-600 mb-6">Создайте первый HTML-шаблон с переменными для AI</p>
           <Button
             onClick={() => setDialogOpen(true)}
             className="bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90"
@@ -541,140 +788,161 @@ const Index = () => {
     </div>
   );
 
-  const renderContent = () => (
-    <div>
-      <div className="mb-8 animate-fade-in">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-3xl font-bold text-gray-900">База знаний</h2>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90 shadow-lg shadow-purple-500/25">
-                <Icon name="Plus" size={18} className="mr-2" />
-                Добавить контент
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Новая запись</DialogTitle>
-                <DialogDescription>
-                  Добавьте контент в базу знаний для использования AI при генерации писем
-                </DialogDescription>
-              </DialogHeader>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  createKnowledge({
-                    event_id: events[0]?.id || null,
-                    content_type: formData.get('content_type'),
-                    title: formData.get('title'),
-                    content: formData.get('content'),
-                    source: formData.get('source'),
-                  });
-                }}
-                className="space-y-4 pt-4"
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="content-type">Тип контента</Label>
-                  <Select name="content_type" defaultValue="pain_points">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pain_points">Боли аудитории</SelectItem>
-                      <SelectItem value="program">Программа события</SelectItem>
-                      <SelectItem value="content_plan">Контент-план</SelectItem>
-                      <SelectItem value="faq">FAQ</SelectItem>
-                      <SelectItem value="benefits">Преимущества</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="kb-title">Заголовок</Label>
-                  <Input id="kb-title" name="title" placeholder="Например: Основные боли аудитории" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="kb-content">Контент</Label>
-                  <Textarea id="kb-content" name="content" placeholder="Подробное описание..." rows={6} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="source">Источник</Label>
-                  <Input id="source" name="source" placeholder="Google Docs, Sheets, интервью..." />
-                </div>
+  const renderContent = () => {
+    const currentEvent = events.find((e) => e.id === selectedEvent);
+    const eventKnowledge = knowledge.filter((k) => k.event_id === selectedEvent);
+
+    return (
+      <div>
+        <div className="mb-8 animate-fade-in">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900">База знаний</h2>
+              <p className="text-gray-600 mt-1">
+                {currentEvent ? `Контент для события: ${currentEvent.name}` : 'Выберите событие'}
+              </p>
+            </div>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
                 <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90"
+                  disabled={!selectedEvent}
+                  className="bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90 shadow-lg shadow-purple-500/25"
                 >
-                  {loading ? 'Добавление...' : 'Добавить в базу'}
+                  <Icon name="Plus" size={18} className="mr-2" />
+                  Добавить контент
                 </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-        <p className="text-gray-600">Контент-планы, боли аудитории и программы для AI</p>
-      </div>
-
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="all">Все</TabsTrigger>
-          <TabsTrigger value="pain_points">Боли</TabsTrigger>
-          <TabsTrigger value="program">Программа</TabsTrigger>
-          <TabsTrigger value="content_plan">Контент-план</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="all" className="space-y-4">
-          {knowledge.map((entry, index) => (
-            <Card
-              key={entry.id}
-              className="group hover:shadow-lg transition-all duration-300 animate-fade-in"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{entry.title}</h3>
-                      <Badge className="bg-blue-500/10 text-blue-600" variant="secondary">
-                        {entry.content_type}
-                      </Badge>
-                    </div>
-                    {entry.source && (
-                      <p className="text-xs text-gray-500 flex items-center gap-1">
-                        <Icon name="Link" size={12} />
-                        {entry.source}
-                      </p>
-                    )}
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                  <DialogTitle>Новая запись</DialogTitle>
+                  <DialogDescription>
+                    Добавьте контент для события: {currentEvent?.name}
+                  </DialogDescription>
+                </DialogHeader>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    createKnowledge({
+                      event_id: selectedEvent,
+                      content_type: formData.get('content_type'),
+                      title: formData.get('title'),
+                      content: formData.get('content'),
+                      source: formData.get('source'),
+                    });
+                  }}
+                  className="space-y-4 pt-4"
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="content-type">Тип контента</Label>
+                    <Select name="content_type" defaultValue="pain_points">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pain_points">Боли аудитории</SelectItem>
+                        <SelectItem value="program">Программа события</SelectItem>
+                        <SelectItem value="content_plan">Контент-план</SelectItem>
+                        <SelectItem value="speakers">Спикеры</SelectItem>
+                        <SelectItem value="benefits">Преимущества</SelectItem>
+                        <SelectItem value="faq">FAQ</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Icon name="MoreVertical" size={18} />
+                  <div className="space-y-2">
+                    <Label htmlFor="kb-title">Заголовок</Label>
+                    <Input id="kb-title" name="title" placeholder="Например: Основные боли аудитории" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="kb-content">Контент</Label>
+                    <Textarea
+                      id="kb-content"
+                      name="content"
+                      placeholder="Подробное описание..."
+                      rows={6}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="source">Источник</Label>
+                    <Input id="source" name="source" placeholder="Google Docs, Sheets, интервью..." />
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90"
+                  >
+                    {loading ? 'Добавление...' : 'Добавить в базу'}
                   </Button>
-                </div>
-                <p className="text-sm text-gray-700 leading-relaxed">{entry.content}</p>
-              </div>
-            </Card>
-          ))}
-        </TabsContent>
-      </Tabs>
-
-      {knowledge.length === 0 && (
-        <Card className="p-12 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
-            <Icon name="BookOpen" size={32} className="text-purple-500" />
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">База знаний пуста</h3>
-          <p className="text-gray-600 mb-6">Добавьте контент для обучения AI</p>
-          <Button
-            onClick={() => setDialogOpen(true)}
-            className="bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90"
-          >
-            <Icon name="Plus" size={18} className="mr-2" />
-            Добавить контент
-          </Button>
-        </Card>
-      )}
-    </div>
-  );
+
+          {!selectedEvent && (
+            <Alert className="border-yellow-200 bg-yellow-50">
+              <Icon name="AlertCircle" size={16} className="text-yellow-600" />
+              <AlertDescription className="text-sm text-yellow-900 ml-2">
+                Выберите событие в разделе "События", чтобы добавлять контент
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+
+        {selectedEvent && (
+          <div className="space-y-4">
+            {eventKnowledge.map((entry, index) => (
+              <Card
+                key={entry.id}
+                className="group hover:shadow-lg transition-all duration-300 animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">{entry.title}</h3>
+                        <Badge className="bg-blue-500/10 text-blue-600" variant="secondary">
+                          {entry.content_type}
+                        </Badge>
+                      </div>
+                      {entry.source && (
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <Icon name="Link" size={12} />
+                          {entry.source}
+                        </p>
+                      )}
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Icon name="MoreVertical" size={18} />
+                    </Button>
+                  </div>
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{entry.content}</p>
+                </div>
+              </Card>
+            ))}
+
+            {eventKnowledge.length === 0 && (
+              <Card className="p-12 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+                  <Icon name="BookOpen" size={32} className="text-purple-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Нет контента для этого события</h3>
+                <p className="text-gray-600 mb-6">Добавьте информацию для AI-генерации</p>
+                <Button
+                  onClick={() => setDialogOpen(true)}
+                  className="bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90"
+                >
+                  <Icon name="Plus" size={18} className="mr-2" />
+                  Добавить контент
+                </Button>
+              </Card>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50">
@@ -730,9 +998,10 @@ const Index = () => {
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto p-8">
             {activeSection === 'events' && renderEvents()}
+            {activeSection === 'content-types' && renderContentTypes()}
             {activeSection === 'templates' && renderTemplates()}
             {activeSection === 'content' && renderContent()}
-            {!['events', 'templates', 'content'].includes(activeSection) && (
+            {!['events', 'content-types', 'templates', 'content'].includes(activeSection) && (
               <Card className="p-12 text-center">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
                   <Icon name="Construction" size={32} className="text-purple-500" />

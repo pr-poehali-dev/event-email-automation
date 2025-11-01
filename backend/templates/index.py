@@ -41,6 +41,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if template_id:
                 cur.execute("""
                     SELECT t.*, 
+                           ct.name as content_type_name,
+                           ct.description as content_type_description,
+                           e.name as event_name,
                            COALESCE(json_agg(
                                json_build_object(
                                    'id', cs.id,
@@ -53,8 +56,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                            ) FILTER (WHERE cs.id IS NOT NULL), '[]') as slots
                     FROM email_templates t
                     LEFT JOIN content_slots cs ON cs.template_id = t.id
+                    LEFT JOIN content_types ct ON ct.id = t.content_type_id
+                    LEFT JOIN events e ON e.id = t.event_id
                     WHERE t.id = %s
-                    GROUP BY t.id
+                    GROUP BY t.id, ct.name, ct.description, e.name
                 """, (template_id,))
                 result = cur.fetchone()
                 
@@ -75,6 +80,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             else:
                 query = """
                     SELECT t.*,
+                           ct.name as content_type_name,
+                           e.name as event_name,
                            COALESCE(json_agg(
                                json_build_object(
                                    'id', cs.id,
@@ -85,14 +92,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                            ) FILTER (WHERE cs.id IS NOT NULL), '[]') as slots
                     FROM email_templates t
                     LEFT JOIN content_slots cs ON cs.template_id = t.id
+                    LEFT JOIN content_types ct ON ct.id = t.content_type_id
+                    LEFT JOIN events e ON e.id = t.event_id
                 """
                 
                 if event_id:
                     query += " WHERE t.event_id = %s"
-                    query += " GROUP BY t.id ORDER BY t.created_at DESC"
+                    query += " GROUP BY t.id, ct.name, e.name ORDER BY t.created_at DESC"
                     cur.execute(query, (event_id,))
                 else:
-                    query += " GROUP BY t.id ORDER BY t.created_at DESC"
+                    query += " GROUP BY t.id, ct.name, e.name ORDER BY t.created_at DESC"
                     cur.execute(query)
                 
                 results = cur.fetchall()
@@ -110,10 +119,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             cur.execute("""
                 INSERT INTO email_templates 
                 (event_id, name, type, html_content, subject_template, 
-                 cta_text, cta_color, unisender_list_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                 cta_text, cta_color, unisender_list_id, content_type_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, event_id, name, type, subject_template, 
-                          cta_text, cta_color, created_at
+                          cta_text, cta_color, content_type_id, created_at
             """, (
                 body_data.get('event_id'),
                 body_data.get('name'),
@@ -122,7 +131,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 body_data.get('subject_template'),
                 body_data.get('cta_text'),
                 body_data.get('cta_color', '#BB35E0'),
-                body_data.get('unisender_list_id')
+                body_data.get('unisender_list_id'),
+                body_data.get('content_type_id')
             ))
             
             result = cur.fetchone()

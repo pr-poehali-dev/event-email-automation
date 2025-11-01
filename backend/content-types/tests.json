@@ -1,0 +1,28 @@
+{
+  "tests": [
+    {
+      "name": "Get all content types",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": [],
+      "bodyMatcher": "type"
+    },
+    {
+      "name": "Create content type",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "name": "custom_type",
+        "description": "Custom email type",
+        "icon": "Mail"
+      },
+      "expectedStatus": 201,
+      "expectedBody": {
+        "id": "number",
+        "name": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
