@@ -110,7 +110,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 gid_match = re.search(r'gid=(\d+)', url)
                 gid = gid_match.group(1) if gid_match else '0'
                 
-                rows = parse_google_sheet(sheet_id, gid)
+                try:
+                    rows = parse_google_sheet(sheet_id, gid)
+                except Exception as e:
+                    processed_sources.append({'url': url, 'type': 'spreadsheet', 'error': str(e)})
+                    continue
                 
                 cur.execute("DELETE FROM knowledge_base WHERE source = %s AND event_id = %s", (url, evt_id))
                 
@@ -124,7 +128,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     content_type = row.get('content_type', row.get('type', row.get('Тип', 'general')))
                     
                     if not title and not content:
-                        keys = [k for k in row.keys() if row.get(k, '').strip()]
+                        keys = [k for k in row.keys() if str(row.get(k, '')).strip()]
                         if len(keys) > 0:
                             title = str(row.get(keys[0], '')).strip()
                         if len(keys) > 1:
@@ -149,7 +153,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             
             elif 'document' in url:
                 doc_id = extract_doc_id(url)
-                text = parse_google_doc(doc_id)
+                
+                try:
+                    text = parse_google_doc(doc_id)
+                except Exception as e:
+                    processed_sources.append({'url': url, 'type': 'document', 'error': str(e)})
+                    continue
                 
                 cur.execute("DELETE FROM knowledge_base WHERE source = %s AND event_id = %s", (url, evt_id))
                 
