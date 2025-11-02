@@ -11,6 +11,7 @@ from typing import Dict, Any, List
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import openai
+import httpx
 
 def get_db_connection():
     return psycopg2.connect(os.environ['DATABASE_URL'])
@@ -52,7 +53,16 @@ def generate_content_with_ai(variables: List[str], knowledge_data: List[Dict], e
 }}
 """
 
-    client = openai.OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+    proxy_url = os.environ.get('OPENAI_PROXY_URL', '').strip()
+    
+    if proxy_url:
+        http_client = httpx.Client(proxies=proxy_url)
+        client = openai.OpenAI(
+            api_key=os.environ['OPENAI_API_KEY'],
+            http_client=http_client
+        )
+    else:
+        client = openai.OpenAI(api_key=os.environ['OPENAI_API_KEY'])
     
     response = client.chat.completions.create(
         model="gpt-4o-mini",
