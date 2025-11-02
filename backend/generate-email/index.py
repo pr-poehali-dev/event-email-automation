@@ -43,7 +43,8 @@ def generate_content_with_ai(variables: List[str], knowledge_data: List[Dict], e
 2. Пиши коротко, ёмко, по делу — email должен быть легко читаемым
 3. Текст должен быть продающим и вовлекающим
 4. Если в базе нет инфы для переменной — придумай логичное значение на основе контекста
-5. Возвращай ТОЛЬКО JSON с переменными, без дополнительных объяснений
+5. ЗАПОЛНИ СТРОГО ТОЛЬКО ТЕ ПЕРЕМЕННЫЕ, КОТОРЫЕ УКАЗАНЫ ВЫШЕ — не добавляй новые
+6. Возвращай ТОЛЬКО JSON с переменными, без дополнительных объяснений
 
 Пример ответа:
 {{
@@ -74,13 +75,18 @@ def generate_content_with_ai(variables: List[str], knowledge_data: List[Dict], e
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Заполни эти переменные: {', '.join(variables)}"}
+            {"role": "user", "content": f"Заполни СТРОГО только эти переменные: {', '.join(variables)}. Не добавляй другие."}
         ],
         temperature=0.7,
         response_format={"type": "json_object"}
     )
     
-    return json.loads(response.choices[0].message.content)
+    result = json.loads(response.choices[0].message.content)
+    
+    # Фильтруем только запрошенные переменные
+    filtered_result = {k: v for k, v in result.items() if k in variables}
+    
+    return filtered_result
 
 def fill_template(template: str, variables_data: Dict[str, str]) -> str:
     result = template
