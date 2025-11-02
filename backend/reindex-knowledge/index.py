@@ -115,19 +115,22 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 cur.execute("DELETE FROM knowledge_base WHERE source = %s AND event_id = %s", (url, evt_id))
                 
                 for row in rows:
+                    if not row:
+                        continue
+                    
                     title = row.get('title', row.get('Title', row.get('Заголовок', '')))
                     content = row.get('content', row.get('Content', row.get('Контент', '')))
                     row_source = row.get('source', row.get('Source', row.get('Источник', url)))
                     content_type = row.get('content_type', row.get('type', row.get('Тип', 'general')))
                     
-                    if not title and not content and row:
-                        keys = list(row.keys())
+                    if not title and not content:
+                        keys = [k for k in row.keys() if row.get(k, '').strip()]
                         if len(keys) > 0:
-                            title = row[keys[0]]
+                            title = str(row.get(keys[0], '')).strip()
                         if len(keys) > 1:
-                            content = row[keys[1]]
+                            content = str(row.get(keys[1], '')).strip()
                     
-                    if title or content:
+                    if title and title.strip() or content and content.strip():
                         cur.execute("""
                             INSERT INTO knowledge_base 
                             (event_id, content_type, title, content, source, tags)
