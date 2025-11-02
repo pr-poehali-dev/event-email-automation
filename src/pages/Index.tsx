@@ -25,6 +25,7 @@ const API_URLS = {
   knowledge: 'https://functions.poehali.dev/8575e4c9-695e-4d25-bca9-656ef206c58e',
   contentTypes: 'https://functions.poehali.dev/0061ea7c-e756-4d4f-8741-3978293a72b9',
   generateEmail: 'https://functions.poehali.dev/58ca3cf9-ad8b-4d93-bac8-e5b596860864',
+  analyzeTemplate: 'https://functions.poehali.dev/45e6f3f6-377e-4e0d-9350-09aa87d3e584',
 };
 
 type Event = {
@@ -81,6 +82,11 @@ const Index = () => {
   const [selectedEvent, setSelectedEvent] = useState<number | null>(null);
   const [generatedEmail, setGeneratedEmail] = useState<{html: string; subject: string; variables: any} | null>(null);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [editableVariables, setEditableVariables] = useState<Record<string, string>>({});
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [templateHtml, setTemplateHtml] = useState('');
+  const [analyzedVariables, setAnalyzedVariables] = useState<any[]>([]);
+  const [currentTemplateId, setCurrentTemplateId] = useState<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -170,6 +176,8 @@ const Index = () => {
       const data = await response.json();
       setTemplates([data, ...templates]);
       setDialogOpen(false);
+      setTemplateHtml('');
+      setAnalyzedVariables([]);
       toast({
         title: 'Шаблон создан',
         description: 'Новый шаблон успешно добавлен',
@@ -257,6 +265,7 @@ const Index = () => {
         subject: data.subject,
         variables: data.variables_used,
       });
+      setEditableVariables(data.variables_used);
       setPreviewDialogOpen(true);
       
       toast({
@@ -267,6 +276,72 @@ const Index = () => {
       toast({
         title: 'Ошибка генерации',
         description: error.message || 'Проверьте наличие контента в базе знаний',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateVariableValue = (key: string, value: string) => {
+    setEditableVariables(prev => ({ ...prev, [key]: value }));
+  };
+
+  const applyVariableChanges = () => {
+    if (!generatedEmail) return;
+    
+    let updatedHtml = generatedEmail.html;
+    Object.entries(editableVariables).forEach(([key, value]) => {
+      const regex = new RegExp(generatedEmail.variables[key], 'g');
+      updatedHtml = updatedHtml.replace(regex, value);
+    });
+    
+    setGeneratedEmail({
+      ...generatedEmail,
+      html: updatedHtml,
+      variables: editableVariables,
+    });
+    
+    toast({
+      title: 'Изменения применены',
+      description: 'Письмо обновлено с новыми значениями',
+    });
+  };
+
+  const analyzeHtmlTemplate = async (html: string) => {
+    if (!html || html.length < 10) {
+      toast({
+        title: 'Ошибка',
+        description: 'Введите HTML код шаблона',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(API_URLS.analyzeTemplate, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html_content: html }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Ошибка анализа');
+      }
+      
+      const data = await response.json();
+      setTemplateHtml(data.template_html);
+      setAnalyzedVariables(data.variables);
+      
+      toast({
+        title: 'Анализ завершён! ✨',
+        description: `Найдено ${data.variables_count} переменных`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Ошибка анализа',
+        description: error.message,
         variant: 'destructive',
       });
     } finally {
@@ -615,13 +690,48 @@ const Index = () => {
                 </DialogDescription>
               </DialogHeader>
 
-              <Alert className="my-4 border-blue-200 bg-blue-50">
-                <Icon name="Info" size={16} className="text-blue-600" />
-                <AlertDescription className="text-sm text-blue-900 ml-2">
-                  <strong>Как работает:</strong> AI заполняет переменные контентом из базы знаний. 
-                  Примеры: {'{'}{'{'} event_name {'}'}{'}'},  {'{'}{'{'} speaker_bio {'}'}{'}'},  {'{'}{'{'} key_benefits {'}'}{'}'}.
-                </AlertDescription>
-              </Alert>
+              <Tabs defaultValue="manual" className="my-4">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="manual">Вручную</TabsTrigger>
+                  <TabsTrigger value="auto">Автоматически</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="manual" className="space-y-3 pt-2">
+                  <Alert className="border-blue-200 bg-blue-50">
+                    <Icon name="Info" size={16} className="text-blue-600" />
+                    <AlertDescription className="text-sm text-blue-900 ml-2">
+                      <strong>Вручную:</strong> Добавьте переменные в формате {'{'}{'{'} название {'}'}{'}'}. AI заполнит их из базы знаний.
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <details className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-purple-600">
+                      📋 Популярные переменные (нажмите чтобы раскрыть)
+                    </summary>
+                    <div className="mt-3 space-y-2 text-xs">
+                      <div className="grid grid-cols-2 gap-2">
+                        <code className="bg-white px-2 py-1 rounded border">{'{'}{'{'} event_name {'}'}{'}'}</code>
+                        <code className="bg-white px-2 py-1 rounded border">{'{'}{'{'} event_date {'}'}{'}'}</code>
+                        <code className="bg-white px-2 py-1 rounded border">{'{'}{'{'} event_time {'}'}{'}'}</code>
+                        <code className="bg-white px-2 py-1 rounded border">{'{'}{'{'} location {'}'}{'}'}</code>
+                        <code className="bg-white px-2 py-1 rounded border">{'{'}{'{'} speaker_name {'}'}{'}'}</code>
+                        <code className="bg-white px-2 py-1 rounded border">{'{'}{'{'} topic {'}'}{'}'}</code>
+                        <code className="bg-white px-2 py-1 rounded border">{'{'}{'{'} description {'}'}{'}'}</code>
+                        <code className="bg-white px-2 py-1 rounded border">{'{'}{'{'} benefits {'}'}{'}'}</code>
+                      </div>
+                    </div>
+                  </details>
+                </TabsContent>
+                
+                <TabsContent value="auto" className="space-y-2 pt-2">
+                  <Alert className="border-purple-200 bg-purple-50">
+                    <Icon name="Sparkles" size={16} className="text-purple-600" />
+                    <AlertDescription className="text-sm text-purple-900 ml-2">
+                      <strong>Автоматически:</strong> Вставьте готовый HTML — AI найдёт весь текст и заменит на переменные
+                    </AlertDescription>
+                  </Alert>
+                </TabsContent>
+              </Tabs>
 
               <form
                 onSubmit={(e) => {
@@ -704,15 +814,43 @@ const Index = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="html">HTML контент</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="html">HTML контент</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const textarea = document.getElementById('html') as HTMLTextAreaElement;
+                        if (textarea?.value) {
+                          analyzeHtmlTemplate(textarea.value);
+                        }
+                      }}
+                      disabled={loading}
+                      className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                    >
+                      <Icon name="Sparkles" size={14} className="mr-2" />
+                      {loading ? 'Анализ...' : 'Автоматически создать переменные'}
+                    </Button>
+                  </div>
                   <Textarea
                     id="html"
                     name="html_content"
+                    value={templateHtml || undefined}
+                    onChange={(e) => setTemplateHtml(e.target.value)}
                     placeholder="<h1>{{'{'}{'{'}event_name{'}'}{'}'}&#10;&#10;<p>{{'{'}{'{'}event_description{'}'}{'}'}</p>&#10;&#10;<a href='#' style='background:#BB35E0'>{{'{'}{'{'}cta_text{'}'}{'}'}</a>"
                     rows={10}
                     required
                     className="font-mono text-sm"
                   />
+                  {analyzedVariables.length > 0 && (
+                    <Alert className="border-green-200 bg-green-50">
+                      <Icon name="CheckCircle" size={16} className="text-green-600" />
+                      <AlertDescription className="text-sm text-green-900 ml-2">
+                        Найдено переменных: {analyzedVariables.map(v => `{{${v.name}}}`).join(', ')}
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
 
                 <Button
@@ -863,6 +1001,14 @@ const Index = () => {
                     Добавьте контент для события: {currentEvent?.name}
                   </DialogDescription>
                 </DialogHeader>
+                <Alert className="border-purple-200 bg-purple-50 mb-4">
+                  <Icon name="Lightbulb" size={16} className="text-purple-600" />
+                  <AlertDescription className="text-sm text-purple-900 ml-2">
+                    <strong>Совет:</strong> AI использует эти данные для заполнения переменных в шаблонах. 
+                    Чем подробнее информация, тем качественнее письма!
+                  </AlertDescription>
+                </Alert>
+
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -1079,14 +1225,34 @@ const Index = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold">Заполненные переменные:</Label>
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
-                  {Object.entries(generatedEmail.variables).map(([key, value]) => (
-                    <div key={key} className="text-sm">
-                      <span className="font-mono text-purple-600">{'{{'}{key}{'}}'}</span>
-                      <span className="mx-2">→</span>
-                      <span className="text-gray-700">{String(value)}</span>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Заполненные переменные:</Label>
+                  <Button
+                    size="sm"
+                    onClick={applyVariableChanges}
+                    className="bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90"
+                  >
+                    <Icon name="Check" size={14} className="mr-2" />
+                    Применить изменения
+                  </Button>
+                </div>
+                <Alert className="border-blue-200 bg-blue-50">
+                  <Icon name="Info" size={16} className="text-blue-600" />
+                  <AlertDescription className="text-sm text-blue-900 ml-2">
+                    Отредактируйте значения переменных и нажмите "Применить изменения" для обновления письма
+                  </AlertDescription>
+                </Alert>
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+                  {Object.entries(editableVariables).map(([key, value]) => (
+                    <div key={key} className="space-y-1">
+                      <Label className="text-xs font-mono text-purple-600">{'{{'}{key}{'}}'}</Label>
+                      <Textarea
+                        value={String(value)}
+                        onChange={(e) => updateVariableValue(key, e.target.value)}
+                        className="text-sm min-h-[60px]"
+                        placeholder="Введите значение..."
+                      />
                     </div>
                   ))}
                 </div>
