@@ -28,6 +28,7 @@ const API_URLS = {
   analyzeTemplate: 'https://functions.poehali.dev/45e6f3f6-377e-4e0d-9350-09aa87d3e584',
   importKnowledge: 'https://functions.poehali.dev/b6aa24c4-dc7c-4c20-a478-6128829d3c71',
   reindexKnowledge: 'https://functions.poehali.dev/3e72befc-6174-45b6-b395-52d0af3b33be',
+  templateVariables: 'https://functions.poehali.dev/60da5786-6e43-4862-b315-72f8e8b6724b',
 };
 
 type Event = {

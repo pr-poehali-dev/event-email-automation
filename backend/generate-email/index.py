@@ -21,11 +21,26 @@ def extract_variables(template: str) -> List[str]:
     variables = re.findall(pattern, template)
     return list(set(variables))
 
-def generate_content_with_ai(variables: List[str], knowledge_data: List[Dict], event_name: str, subject_template: str) -> Dict[str, str]:
+def generate_content_with_ai(template_variables: List[Dict], knowledge_data: List[Dict], event_name: str, subject_template: str) -> Dict[str, str]:
     knowledge_text = "\n\n".join([
         f"[{item['content_type']}] {item['title']}:\n{item['content']}"
         for item in knowledge_data
     ])
+    
+    # Формируем описания переменных для AI
+    variables_descriptions = []
+    for var in template_variables:
+        var_name = var['variable_name']
+        var_desc = var.get('variable_description', '')
+        default_val = var.get('default_value', '')
+        
+        if var_desc:
+            variables_descriptions.append(f"- {var_name}: {var_desc}" + (f" (по умолчанию: {default_val})" if default_val else ""))
+        else:
+            variables_descriptions.append(f"- {var_name}")
+    
+    variables_list = '\n'.join(variables_descriptions)
+    variable_names = [v['variable_name'] for v in template_variables]
     
     system_prompt = f"""Ты — эксперт по email-маркетингу. Твоя задача заполнить переменные в шаблоне письма.
 
@@ -34,7 +49,8 @@ def generate_content_with_ai(variables: List[str], knowledge_data: List[Dict], e
 БАЗА ЗНАНИЙ:
 {knowledge_text}
 
-ПЕРЕМЕННЫЕ для заполнения: {', '.join(variables)}
+ПЕРЕМЕННЫЕ для заполнения:
+{variables_list}
 
 Тема письма: {subject_template}
 
@@ -42,9 +58,10 @@ def generate_content_with_ai(variables: List[str], knowledge_data: List[Dict], e
 1. Используй ТОЛЬКО информацию из базы знаний выше
 2. Пиши коротко, ёмко, по делу — email должен быть легко читаемым
 3. Текст должен быть продающим и вовлекающим
-4. Если в базе нет инфы для переменной — придумай логичное значение на основе контекста
-5. ЗАПОЛНИ СТРОГО ТОЛЬКО ТЕ ПЕРЕМЕННЫЕ, КОТОРЫЕ УКАЗАНЫ ВЫШЕ — не добавляй новые
-6. Возвращай ТОЛЬКО JSON с переменными, без дополнительных объяснений
+4. Следуй описаниям переменных - они точно говорят что нужно в каждом поле
+5. Если в базе нет инфы для переменной — используй значение по умолчанию или придумай на основе контекста
+6. ЗАПОЛНИ СТРОГО ТОЛЬКО ТЕ ПЕРЕМЕННЫЕ, КОТОРЫЕ УКАЗАНЫ ВЫШЕ — не добавляй новые
+7. Возвращай ТОЛЬКО JSON с переменными, без дополнительных объяснений
 
 Пример ответа:
 {{
@@ -75,7 +92,7 @@ def generate_content_with_ai(variables: List[str], knowledge_data: List[Dict], e
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Заполни СТРОГО только эти переменные: {', '.join(variables)}. Не добавляй другие."}
+            {"role": "user", "content": f"Заполни СТРОГО только эти переменные: {', '.join(variable_names)}. Не добавляй другие."}
         ],
         temperature=0.7,
         response_format={"type": "json_object"}
@@ -84,7 +101,13 @@ def generate_content_with_ai(variables: List[str], knowledge_data: List[Dict], e
     result = json.loads(response.choices[0].message.content)
     
     # Фильтруем только запрошенные переменные
-    filtered_result = {k: v for k, v in result.items() if k in variables}
+    filtered_result = {k: v for k, v in result.items() if k in variable_names}
+    
+    # Добавляем значения по умолчанию для пропущенных переменных
+    for var in template_variables:
+        var_name = var['variable_name']
+        if var_name not in filtered_result and var.get('default_value'):
+            filtered_result[var_name] = var['default_value']
     
     return filtered_result
 
@@ -217,10 +240,25 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         subject_template = template['subject_template']
         event_id = template['event_id']
         event_name = template['event_name']
+        content_type_id = template['content_type_id']
         
-        variables_in_html = extract_variables(html_template)
-        variables_in_subject = extract_variables(subject_template)
-        all_variables = list(set(variables_in_html + variables_in_subject))
+        # Получаем переменные с описаниями из базы
+        if content_type_id:
+            cur.execute("""
+                SELECT variable_name, variable_description, default_value, is_required
+                FROM template_variables
+                WHERE content_type_id = %s
+                ORDER BY display_order, variable_name
+            """, (content_type_id,))
+            
+            template_variables = [dict(row) for row in cur.fetchall()]
+            all_variables = [v['variable_name'] for v in template_variables]
+        else:
+            # Fallback: извлекаем переменные из шаблона автоматически
+            variables_in_html = extract_variables(html_template)
+            variables_in_subject = extract_variables(subject_template)
+            all_variables = list(set(variables_in_html + variables_in_subject))
+            template_variables = [{'variable_name': v, 'variable_description': '', 'default_value': None} for v in all_variables]
         
         cur.execute("""
             SELECT content_type, title, content, source
@@ -243,7 +281,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             }
         
         variables_data = generate_content_with_ai(
-            all_variables, 
+            template_variables, 
             knowledge_data, 
             event_name,
             subject_template
