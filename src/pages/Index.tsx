@@ -1159,16 +1159,16 @@ const Index = () => {
           </div>
         </div>
 
-        {!selectedEvent && (
-          <Alert className="border-yellow-200 bg-yellow-50">
-            <Icon name="AlertCircle" size={16} className="text-yellow-600" />
-            <AlertDescription className="text-sm text-yellow-900 ml-2">
-              Выберите событие в разделе "События", чтобы добавлять контент
-            </AlertDescription>
-          </Alert>
-        )}
+          {!selectedEvent && (
+            <Alert className="border-yellow-200 bg-yellow-50">
+              <Icon name="AlertCircle" size={16} className="text-yellow-600" />
+              <AlertDescription className="text-sm text-yellow-900 ml-2">
+                Выберите событие в разделе "События", чтобы добавлять контент
+              </AlertDescription>
+            </Alert>
+          )}
 
-        {selectedEvent && (
+          {selectedEvent && (
           <div className="space-y-4">
             {eventKnowledge.map((entry, index) => (
               <Card
@@ -1219,6 +1219,7 @@ const Index = () => {
             )}
           </div>
         )}
+        </div>
       </div>
     );
   };
