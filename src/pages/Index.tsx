@@ -24,6 +24,7 @@ const API_URLS = {
   templates: 'https://functions.poehali.dev/a9e49384-2582-40e1-878d-078fcb5d5f70',
   knowledge: 'https://functions.poehali.dev/8575e4c9-695e-4d25-bca9-656ef206c58e',
   contentTypes: 'https://functions.poehali.dev/0061ea7c-e756-4d4f-8741-3978293a72b9',
+  generateEmail: 'https://functions.poehali.dev/58ca3cf9-ad8b-4d93-bac8-e5b596860864',
 };
 
 type Event = {
@@ -78,6 +79,8 @@ const Index = () => {
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<number | null>(null);
+  const [generatedEmail, setGeneratedEmail] = useState<{html: string; subject: string; variables: any} | null>(null);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -227,6 +230,43 @@ const Index = () => {
       toast({
         title: 'Ошибка',
         description: 'Не удалось создать тип контента',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateEmail = async (templateId: number) => {
+    setLoading(true);
+    try {
+      const response = await fetch(API_URLS.generateEmail, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template_id: templateId }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Ошибка генерации');
+      }
+      
+      const data = await response.json();
+      setGeneratedEmail({
+        html: data.html_content,
+        subject: data.subject,
+        variables: data.variables_used,
+      });
+      setPreviewDialogOpen(true);
+      
+      toast({
+        title: 'Письмо сгенерировано! ✨',
+        description: 'AI заполнил все переменные контентом из базы знаний',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Ошибка генерации',
+        description: error.message || 'Проверьте наличие контента в базе знаний',
         variant: 'destructive',
       });
     } finally {
@@ -759,9 +799,13 @@ const Index = () => {
                   <Icon name="Edit" size={16} className="mr-2" />
                   Редактировать
                 </Button>
-                <Button variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+                <Button 
+                  onClick={() => generateEmail(template.id)}
+                  disabled={loading}
+                  className="bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90 text-white"
+                >
                   <Icon name="Sparkles" size={16} className="mr-2" />
-                  Генерировать письмо
+                  {loading ? 'Генерация...' : 'Генерировать письмо'}
                 </Button>
               </div>
             </div>
@@ -1013,6 +1057,80 @@ const Index = () => {
           </div>
         </main>
       </div>
+
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Icon name="Sparkles" size={24} className="text-purple-600" />
+              Сгенерированное письмо
+            </DialogTitle>
+            <DialogDescription>
+              AI заполнил переменные контентом из базы знаний
+            </DialogDescription>
+          </DialogHeader>
+
+          {generatedEmail && (
+            <div className="space-y-6 pt-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Тема письма:</Label>
+                <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                  <p className="text-gray-900 font-medium">{generatedEmail.subject}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Заполненные переменные:</Label>
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                  {Object.entries(generatedEmail.variables).map(([key, value]) => (
+                    <div key={key} className="text-sm">
+                      <span className="font-mono text-purple-600">{'{{'}{key}{'}}'}</span>
+                      <span className="mx-2">→</span>
+                      <span className="text-gray-700">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Превью письма:</Label>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const blob = new Blob([generatedEmail.html], { type: 'text/html' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'email.html';
+                      a.click();
+                    }}
+                  >
+                    <Icon name="Download" size={14} className="mr-2" />
+                    Скачать HTML
+                  </Button>
+                </div>
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <iframe
+                    srcDoc={generatedEmail.html}
+                    className="w-full h-96 bg-white"
+                    sandbox="allow-same-origin"
+                    title="Email Preview"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">HTML код:</Label>
+                <div className="p-4 bg-gray-900 rounded-lg overflow-x-auto">
+                  <pre className="text-xs text-green-400 font-mono">{generatedEmail.html}</pre>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
