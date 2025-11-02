@@ -26,6 +26,7 @@ const API_URLS = {
   contentTypes: 'https://functions.poehali.dev/0061ea7c-e756-4d4f-8741-3978293a72b9',
   generateEmail: 'https://functions.poehali.dev/58ca3cf9-ad8b-4d93-bac8-e5b596860864',
   analyzeTemplate: 'https://functions.poehali.dev/45e6f3f6-377e-4e0d-9350-09aa87d3e584',
+  importKnowledge: 'https://functions.poehali.dev/b6aa24c4-dc7c-4c20-a478-6128829d3c71',
 };
 
 type Event = {
@@ -87,6 +88,9 @@ const Index = () => {
   const [templateHtml, setTemplateHtml] = useState('');
   const [analyzedVariables, setAnalyzedVariables] = useState<any[]>([]);
   const [currentTemplateId, setCurrentTemplateId] = useState<number | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [importing, setImporting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -216,6 +220,46 @@ const Index = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const importFromGoogle = async () => {
+    if (!importUrl.trim() || !selectedEvent) return;
+    
+    setImporting(true);
+    try {
+      const response = await fetch(API_URLS.importKnowledge, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: importUrl,
+          event_id: selectedEvent,
+          content_type: 'general'
+        }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Ошибка импорта');
+      }
+      
+      const data = await response.json();
+      await loadKnowledge();
+      setImportDialogOpen(false);
+      setImportUrl('');
+      
+      toast({
+        title: 'Импорт завершён',
+        description: `Загружено ${data.imported} записей из ${data.type === 'spreadsheet' ? 'таблицы' : 'документа'}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Ошибка импорта',
+        description: error.message || 'Не удалось загрузить данные',
+        variant: 'destructive',
+      });
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -984,16 +1028,61 @@ const Index = () => {
                 {currentEvent ? `Контент для события: ${currentEvent.name}` : 'Выберите событие'}
               </p>
             </div>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  disabled={!selectedEvent}
-                  className="bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90 shadow-lg shadow-purple-500/25"
-                >
-                  <Icon name="Plus" size={18} className="mr-2" />
-                  Добавить контент
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    disabled={!selectedEvent}
+                    variant="outline"
+                    className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                  >
+                    <Icon name="FileDown" size={18} className="mr-2" />
+                    Импорт из Google
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Импорт из Google</DialogTitle>
+                    <DialogDescription>
+                      Загрузите данные из Google Sheets или Google Docs
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Alert className="border-blue-200 bg-blue-50">
+                    <Icon name="Info" size={16} className="text-blue-600" />
+                    <AlertDescription className="text-sm text-blue-900 ml-2">
+                      <strong>Sheets:</strong> первая строка - заголовки (title, content, source, type)<br/>
+                      <strong>Docs:</strong> каждый параграф = отдельная запись
+                    </AlertDescription>
+                  </Alert>
+                  <div className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>Ссылка на Google Docs или Sheets</Label>
+                      <Input
+                        value={importUrl}
+                        onChange={(e) => setImportUrl(e.target.value)}
+                        placeholder="https://docs.google.com/..."
+                      />
+                    </div>
+                    <Button
+                      onClick={importFromGoogle}
+                      disabled={importing || !importUrl.trim()}
+                      className="w-full bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90"
+                    >
+                      {importing ? 'Импорт...' : 'Загрузить данные'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    disabled={!selectedEvent}
+                    className="bg-gradient-to-r from-[#BB35E0] to-[#8B5CF6] hover:opacity-90 shadow-lg shadow-purple-500/25"
+                  >
+                    <Icon name="Plus" size={18} className="mr-2" />
+                    Добавить контент
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                   <DialogTitle>Новая запись</DialogTitle>
