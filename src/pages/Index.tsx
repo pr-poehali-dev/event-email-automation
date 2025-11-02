@@ -1157,6 +1157,7 @@ const Index = () => {
               </DialogContent>
             </Dialog>
           </div>
+        </div>
 
         {!selectedEvent && (
           <Alert className="border-yellow-200 bg-yellow-50">
