@@ -27,6 +27,7 @@ const API_URLS = {
   generateEmail: 'https://functions.poehali.dev/58ca3cf9-ad8b-4d93-bac8-e5b596860864',
   analyzeTemplate: 'https://functions.poehali.dev/45e6f3f6-377e-4e0d-9350-09aa87d3e584',
   importKnowledge: 'https://functions.poehali.dev/b6aa24c4-dc7c-4c20-a478-6128829d3c71',
+  reindexKnowledge: 'https://functions.poehali.dev/3e72befc-6174-45b6-b395-52d0af3b33be',
 };
 
 type Event = {
@@ -91,6 +92,7 @@ const Index = () => {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -260,6 +262,38 @@ const Index = () => {
       });
     } finally {
       setImporting(false);
+    }
+  };
+
+  const reindexKnowledge = async () => {
+    if (!selectedEvent) return;
+    
+    setReindexing(true);
+    try {
+      const response = await fetch(`${API_URLS.reindexKnowledge}?event_id=${selectedEvent}`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Ошибка переиндексации');
+      }
+      
+      const data = await response.json();
+      await loadKnowledge();
+      
+      toast({
+        title: 'Переиндексация завершена',
+        description: `Обновлено ${data.total_imported} записей из ${data.processed_sources.length} источников`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Ошибка переиндексации',
+        description: error.message || 'Не удалось переиндексировать данные',
+        variant: 'destructive',
+      });
+    } finally {
+      setReindexing(false);
     }
   };
 
@@ -1029,6 +1063,15 @@ const Index = () => {
               </p>
             </div>
             <div className="flex gap-2">
+              <Button
+                onClick={reindexKnowledge}
+                disabled={!selectedEvent || reindexing}
+                variant="outline"
+                className="border-green-300 text-green-700 hover:bg-green-50"
+              >
+                <Icon name="RefreshCw" size={18} className="mr-2" />
+                {reindexing ? 'Обновление...' : 'Переиндексировать'}
+              </Button>
               <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
                 <DialogTrigger asChild>
                   <Button
