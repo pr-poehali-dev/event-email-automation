@@ -89,6 +89,68 @@ def fill_template(template: str, variables_data: Dict[str, str]) -> str:
         result = re.sub(pattern, value, result)
     return result
 
+def validate_and_fix_email(original_template: str, generated_email: str, variables_data: Dict[str, str]) -> str:
+    """Валидирует сгенерированное письмо и корректирует если много отличий от шаблона"""
+    
+    proxy_url = os.environ.get('OPENAI_PROXY_URL', '').strip()
+    
+    if proxy_url:
+        http_client = httpx.Client(
+            proxies={
+                'http://': proxy_url,
+                'https://': proxy_url
+            }
+        )
+        client = openai.OpenAI(
+            api_key=os.environ['OPENAI_API_KEY'],
+            http_client=http_client
+        )
+    else:
+        client = openai.OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+    
+    system_prompt = """Ты — валидатор email-контента. Твоя задача проверить сгенерированное письмо.
+
+ЗАДАЧА:
+1. Сравни шаблон (с переменными {{var}}) и готовое письмо
+2. Проверь, что структура и стиль письма соответствует шаблону
+3. Если есть значительные отличия (изменена структура, добавлены лишние блоки) — исправь
+4. Верни исправленное письмо или оригинал, если всё ОК
+
+ПРАВИЛА:
+- Сохраняй всю HTML разметку из шаблона
+- Заменяй переменные на их значения точно как задано
+- НЕ добавляй новые блоки, секции или элементы
+- НЕ меняй стилизацию и структуру
+- Возвращай ТОЛЬКО HTML письма, без объяснений"""
+
+    user_message = f"""ОРИГИНАЛЬНЫЙ ШАБЛОН:
+{original_template}
+
+СГЕНЕРИРОВАННОЕ ПИСЬМО:
+{generated_email}
+
+ЗНАЧЕНИЯ ПЕРЕМЕННЫХ:
+{json.dumps(variables_data, ensure_ascii=False, indent=2)}
+
+Верни исправленное письмо или оригинал если всё ок. Только HTML, без markdown блоков."""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message}
+        ],
+        temperature=0.3
+    )
+    
+    validated_email = response.choices[0].message.content.strip()
+    
+    # Убираем markdown блоки если ИИ их добавил
+    validated_email = re.sub(r'^```html\n', '', validated_email)
+    validated_email = re.sub(r'\n```$', '', validated_email)
+    
+    return validated_email
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method: str = event.get('httpMethod', 'POST')
     
@@ -183,6 +245,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         final_html = fill_template(html_template, variables_data)
         final_subject = fill_template(subject_template, variables_data)
+        
+        # Валидация и коррекция письма через ИИ
+        final_html = validate_and_fix_email(html_template, final_html, variables_data)
         
         return {
             'statusCode': 200,
