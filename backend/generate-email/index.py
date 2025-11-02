@@ -56,7 +56,13 @@ def generate_content_with_ai(variables: List[str], knowledge_data: List[Dict], e
     proxy_url = os.environ.get('OPENAI_PROXY_URL', '').strip()
     
     if proxy_url:
-        http_client = httpx.Client(proxies=proxy_url)
+        # Формат: http://user:pass@host:port или просто http://host:port
+        http_client = httpx.Client(
+            proxies={
+                'http://': proxy_url,
+                'https://': proxy_url
+            }
+        )
         client = openai.OpenAI(
             api_key=os.environ['OPENAI_API_KEY'],
             http_client=http_client
