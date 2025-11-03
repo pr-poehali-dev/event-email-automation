@@ -1,4 +1,5 @@
 {
+  "import-program": "https://functions.poehali.dev/f96b53c0-3cc5-422e-83b1-bfd535562125",
   "build-context": "https://functions.poehali.dev/e5a899bf-994d-47d8-ad4e-99a64306a4f9",
   "nunjucks-renderer": "https://functions.poehali.dev/fbb95390-30eb-4b92-befe-6577bc87098b",
   "content-generator": "https://functions.poehali.dev/87e8705d-9622-4edc-9447-0613454c38d1",

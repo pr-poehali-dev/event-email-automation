@@ -39,7 +39,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             event_id = params.get('id')
             
             if event_id:
-                cur.execute("SELECT * FROM events WHERE id = %s", (event_id,))
+                cur.execute("SELECT * FROM kb_events WHERE id = %s", (event_id,))
                 result = cur.fetchone()
                 
                 if not result:
@@ -57,7 +57,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'isBase64Encoded': False
                 }
             else:
-                cur.execute("SELECT * FROM events ORDER BY created_at DESC")
+                cur.execute("SELECT * FROM kb_events ORDER BY created_at DESC")
                 results = cur.fetchall()
                 
                 return {

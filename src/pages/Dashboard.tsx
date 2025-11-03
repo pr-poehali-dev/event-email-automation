@@ -4,14 +4,16 @@ import EventsManager from '../components/EventsManager';
 import KnowledgeManager from '../components/KnowledgeManager';
 import TemplatesManager from '../components/TemplatesManager';
 import CampaignsManager from '../components/CampaignsManager';
+import EventManager from '../components/EventManager';
 
-type View = 'events' | 'knowledge' | 'templates' | 'campaigns' | 'analytics';
+type View = 'events' | 'knowledge' | 'templates' | 'campaigns' | 'analytics' | 'kb-events';
 
 export default function Dashboard() {
   const [currentView, setCurrentView] = useState<View>('events');
 
   const menuItems = [
     { id: 'events' as View, label: 'События', icon: Calendar, color: '#8B5CF6' },
+    { id: 'kb-events' as View, label: 'Мероприятия KB', icon: Calendar, color: '#10B981' },
     { id: 'knowledge' as View, label: 'База знаний', icon: BookOpen, color: '#06B6D4' },
     { id: 'templates' as View, label: 'Шаблоны', icon: FileText, color: '#F59E0B' },
     { id: 'campaigns' as View, label: 'Кампании', icon: Send, color: '#10B981' },
@@ -136,6 +138,7 @@ export default function Dashboard() {
             minHeight: '85vh'
           }}>
             {currentView === 'events' && <EventsManager />}
+            {currentView === 'kb-events' && <EventManager />}
             {currentView === 'knowledge' && <KnowledgeManager />}
             {currentView === 'templates' && <TemplatesManager />}
             {currentView === 'campaigns' && <CampaignsManager />}

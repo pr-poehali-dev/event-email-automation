@@ -1,0 +1,26 @@
+{
+  "tests": [
+    {
+      "name": "Import program data",
+      "method": "POST",
+      "body": {
+        "event_id": "human24",
+        "speakers": [
+          {"name": "Test Speaker", "title": "CTO", "company": "TestCorp", "topic": "AI", "bio": "Expert", "photo": "https://test.com/photo.jpg", "links": {}}
+        ],
+        "sections": [
+          {"title": "Test Section", "description": "Description", "tags": ["test"], "day_id": "day1"}
+        ],
+        "talks": [
+          {"title": "Test Talk", "speaker_name": "Test Speaker", "section_title": "Test Section", "start_time": "10:00", "end_time": "10:30", "abstract": "Abstract", "keywords": ["AI"], "day_id": "day1"}
+        ]
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": "boolean",
+        "imported": "object"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
