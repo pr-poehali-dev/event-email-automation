@@ -1,0 +1,28 @@
+{
+  "tests": [
+    {
+      "name": "Get all events",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": "array",
+      "bodyMatcher": "type"
+    },
+    {
+      "name": "Create new event",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "name": "Test Event API",
+        "description": "Test Description",
+        "date": "2025-12-01"
+      },
+      "expectedStatus": 201,
+      "expectedBody": {
+        "id": "number",
+        "name": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

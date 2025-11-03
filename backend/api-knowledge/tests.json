@@ -1,0 +1,28 @@
+{
+  "tests": [
+    {
+      "name": "Get all knowledge",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": "array",
+      "bodyMatcher": "type"
+    },
+    {
+      "name": "Create knowledge entry",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "content_type": "general",
+        "title": "Test Knowledge",
+        "content": "Test Content"
+      },
+      "expectedStatus": 201,
+      "expectedBody": {
+        "id": "number",
+        "title": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

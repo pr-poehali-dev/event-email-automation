@@ -1,4 +1,6 @@
 {
+  "api-knowledge": "https://functions.poehali.dev/1793bb22-ead4-461c-a1dc-99d12754688c",
+  "api-events": "https://functions.poehali.dev/5d528b9a-f814-4e0a-9250-d3a7bc40acb6",
   "analyze-template": "https://functions.poehali.dev/45e6f3f6-377e-4e0d-9350-09aa87d3e584",
   "generate-email": "https://functions.poehali.dev/58ca3cf9-ad8b-4d93-bac8-e5b596860864"
 }
