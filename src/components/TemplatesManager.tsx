@@ -8,12 +8,25 @@ interface Template {
   uploadedAt: string;
 }
 
+interface GeneratedEmail {
+  subject: string;
+  preheader: string;
+  html_content: string;
+  content_validation: any;
+  html_validation: any;
+  recipe_used: string;
+}
+
 export default function TemplatesManager() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [generatedEmail, setGeneratedEmail] = useState<GeneratedEmail | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -267,12 +280,15 @@ export default function TemplatesManager() {
                       });
                       
                       if (uploadResponse.ok) {
+                        const newTemplate = await uploadResponse.json();
                         await loadTemplates();
                         setTimeout(() => {
                           setShowUpload(false);
                           setAnalysisResult(null);
                           setAnalyzing(false);
-                        }, 3000);
+                          setSelectedTemplate(newTemplate);
+                          setShowGenerator(true);
+                        }, 2000);
                       }
                     }
                   } catch (error) {
@@ -386,6 +402,256 @@ export default function TemplatesManager() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showGenerator && selectedTemplate && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '20px',
+            padding: '2.5rem',
+            maxWidth: '800px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
+            position: 'relative'
+          }}>
+            <button
+              onClick={() => {
+                setShowGenerator(false);
+                setGeneratedEmail(null);
+                setSelectedTemplate(null);
+              }}
+              style={{
+                position: 'absolute',
+                top: '1.5rem',
+                right: '1.5rem',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#64748b'
+              }}
+            >
+              <X style={{ width: '24px', height: '24px' }} />
+            </button>
+
+            <h3 style={{
+              fontSize: '1.875rem',
+              fontWeight: 'bold',
+              marginBottom: '1rem',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              Генератор письма
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '2rem' }}>Шаблон: {selectedTemplate.name}</p>
+
+            {!generatedEmail ? (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                
+                setGenerating(true);
+                try {
+                  const response = await fetch('https://functions.poehali.dev/58ca3cf9-ad8b-4d93-bac8-e5b596860864', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      template_id: selectedTemplate.id,
+                      event_id: 1,
+                      content_type_code: formData.get('content_type'),
+                      content_plan: {
+                        topic: formData.get('topic')
+                      },
+                      mappings: [
+                        { variable: 'cta_text', source: 'static', value: 'Зарегистрироваться' },
+                        { variable: 'cta_text_2', source: 'static', value: 'Зарегистрироваться' }
+                      ]
+                    })
+                  });
+                  
+                  if (response.ok) {
+                    const result = await response.json();
+                    setGeneratedEmail(result);
+                  }
+                } catch (error) {
+                  console.error('Generation failed:', error);
+                } finally {
+                  setGenerating(false);
+                }
+              }}>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#1e293b' }}>
+                    Тип письма
+                  </label>
+                  <select
+                    name="content_type"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.875rem',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      fontSize: '1rem'
+                    }}
+                  >
+                    <option value="announce">Анонс (информативный)</option>
+                    <option value="sale">Продажа (с оффером)</option>
+                    <option value="pain_sale">Боль → Продажа</option>
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: '2rem' }}>
+                  <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#1e293b' }}>
+                    Тема письма
+                  </label>
+                  <input
+                    type="text"
+                    name="topic"
+                    required
+                    placeholder="Как удержать персонал без высоких зарплат"
+                    style={{
+                      width: '100%',
+                      padding: '0.875rem',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      fontSize: '1rem'
+                    }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={generating}
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    background: generating ? '#9CA3AF' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    cursor: generating ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  {generating ? (
+                    <>
+                      <Sparkles style={{ width: '20px', height: '20px' }} />
+                      Генерация...
+                    </>
+                  ) : (
+                    'Сгенерировать письмо'
+                  )}
+                </button>
+              </form>
+            ) : (
+              <div>
+                <div style={{
+                  padding: '1.5rem',
+                  background: generatedEmail.content_validation.status === 'OK' ? '#f0fdf4' : '#fef2f2',
+                  borderRadius: '12px',
+                  marginBottom: '1.5rem',
+                  border: `2px solid ${generatedEmail.content_validation.status === 'OK' ? '#86efac' : '#fca5a5'}`
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <CheckCircle style={{ width: '20px', height: '20px', color: generatedEmail.content_validation.status === 'OK' ? '#22c55e' : '#ef4444' }} />
+                    <strong style={{ color: '#1e293b' }}>Валидация: {generatedEmail.content_validation.status}</strong>
+                  </div>
+                  {generatedEmail.content_validation.errors?.length > 0 && (
+                    <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#64748b' }}>
+                      {generatedEmail.content_validation.errors.map((err: any, i: number) => (
+                        <li key={i}>{err.field}: {err.issue}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <strong style={{ color: '#1e293b' }}>Тема:</strong>
+                  <p style={{ color: '#64748b', marginTop: '0.25rem' }}>{generatedEmail.subject}</p>
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <strong style={{ color: '#1e293b' }}>Прехедер:</strong>
+                  <p style={{ color: '#64748b', marginTop: '0.25rem' }}>{generatedEmail.preheader}</p>
+                </div>
+
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <strong style={{ color: '#1e293b' }}>Рецепт:</strong>
+                  <span style={{
+                    marginLeft: '0.5rem',
+                    padding: '0.25rem 0.75rem',
+                    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    color: '#667eea',
+                    fontWeight: 600
+                  }}>
+                    {generatedEmail.recipe_used}
+                  </span>
+                </div>
+
+                <div style={{
+                  background: '#f8fafc',
+                  borderRadius: '8px',
+                  padding: '1rem',
+                  maxHeight: '300px',
+                  overflow: 'auto',
+                  marginBottom: '1rem'
+                }}>
+                  <strong style={{ color: '#1e293b', marginBottom: '0.5rem', display: 'block' }}>HTML Preview:</strong>
+                  <iframe
+                    srcDoc={generatedEmail.html_content}
+                    style={{
+                      width: '100%',
+                      height: '400px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px'
+                    }}
+                  />
+                </div>
+
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedEmail.html_content);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Скопировать HTML
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
