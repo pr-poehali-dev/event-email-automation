@@ -401,6 +401,12 @@ function EventEditorModal({ event, onClose }: { event: Event; onClose: () => voi
 
 function KnowledgeBaseModal({ event, onClose }: { event: Event; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<'import' | 'speakers' | 'content'>('import');
+  const [sheetsUrl, setSheetsUrl] = useState('');
+  const [docsUrl, setDocsUrl] = useState('');
+  const [painPoint, setPainPoint] = useState('');
+  const [benefit, setBenefit] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   return (
     <div style={{
@@ -483,6 +489,8 @@ function KnowledgeBaseModal({ event, onClose }: { event: Event; onClose: () => v
               </label>
               <input
                 type="url"
+                value={sheetsUrl}
+                onChange={(e) => setSheetsUrl(e.target.value)}
                 placeholder="https://docs.google.com/spreadsheets/d/..."
                 style={{
                   width: '100%',
@@ -495,16 +503,49 @@ function KnowledgeBaseModal({ event, onClose }: { event: Event; onClose: () => v
             </div>
 
             <button
+              onClick={async () => {
+                if (!sheetsUrl) {
+                  alert('Введите URL Google Sheets');
+                  return;
+                }
+                setImporting(true);
+                try {
+                  const response = await fetch('https://functions.poehali.dev/91b75cc1-96cd-4a72-9ba3-d71edd63b0cc', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      event_id: event.event_id,
+                      sheets_url: sheetsUrl
+                    })
+                  });
+                  const data = await response.json();
+                  if (response.ok) {
+                    alert(`Импорт завершён! Добавлено: ${data.sections_count || 0} секций, ${data.talks_count || 0} докладов, ${data.speakers_count || 0} спикеров`);
+                    await fetch('https://functions.poehali.dev/9f4f68ea-4d9d-4c55-bd58-9baded263228', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ event_id: event.event_id, force_refresh: false })
+                    });
+                  } else {
+                    alert('Ошибка импорта: ' + data.error);
+                  }
+                } catch (err) {
+                  alert('Ошибка: ' + err);
+                } finally {
+                  setImporting(false);
+                }
+              }}
+              disabled={importing}
               style={{
                 width: '100%',
                 padding: '1rem',
-                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                background: importing ? '#94a3b8' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '12px',
                 fontSize: '1rem',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: importing ? 'wait' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -512,7 +553,7 @@ function KnowledgeBaseModal({ event, onClose }: { event: Event; onClose: () => v
               }}
             >
               <Icon name="Download" size={20} />
-              Импортировать программу
+              {importing ? 'Импортирую...' : 'Импортировать программу'}
             </button>
           </div>
         )}
@@ -576,6 +617,8 @@ function KnowledgeBaseModal({ event, onClose }: { event: Event; onClose: () => v
                 </label>
                 <input
                   type="url"
+                  value={docsUrl}
+                  onChange={(e) => setDocsUrl(e.target.value)}
                   placeholder="https://docs.google.com/document/..."
                   style={{
                     width: '100%',
@@ -591,6 +634,8 @@ function KnowledgeBaseModal({ event, onClose }: { event: Event; onClose: () => v
                   Проблема (Pain Point)
                 </label>
                 <textarea
+                  value={painPoint}
+                  onChange={(e) => setPainPoint(e.target.value)}
                   placeholder="Каждый третий новичок уходит в первые 90 дней..."
                   style={{
                     width: '100%',
@@ -608,6 +653,8 @@ function KnowledgeBaseModal({ event, onClose }: { event: Event; onClose: () => v
                   Выгода (Benefit)
                 </label>
                 <textarea
+                  value={benefit}
+                  onChange={(e) => setBenefit(e.target.value)}
                   placeholder="Онбординг, который удерживает 8 из 10..."
                   style={{
                     width: '100%',
@@ -620,6 +667,79 @@ function KnowledgeBaseModal({ event, onClose }: { event: Event; onClose: () => v
                   }}
                 />
               </div>
+              
+              <button
+                onClick={async () => {
+                  if (!painPoint && !benefit) {
+                    alert('Заполните хотя бы одно поле');
+                    return;
+                  }
+                  setSaving(true);
+                  try {
+                    if (painPoint) {
+                      await fetch('https://functions.poehali.dev/1793bb22-ead4-461c-a1dc-99d12754688c', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          event_id: event.event_id,
+                          content_type: 'pain_point',
+                          title: 'Проблема аудитории',
+                          content: painPoint
+                        })
+                      });
+                    }
+                    if (benefit) {
+                      await fetch('https://functions.poehali.dev/1793bb22-ead4-461c-a1dc-99d12754688c', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          event_id: event.event_id,
+                          content_type: 'benefit',
+                          title: 'Выгода мероприятия',
+                          content: benefit
+                        })
+                      });
+                    }
+                    await fetch('https://functions.poehali.dev/27fc4146-2d98-4448-bca8-1859ec91ce97', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        event_id: event.event_id,
+                        chunks: [
+                          painPoint ? { text: painPoint, content_type: 'pain_point', content_id: `pain_${Date.now()}`, metadata: { source: 'manual' } } : null,
+                          benefit ? { text: benefit, content_type: 'benefit', content_id: `benefit_${Date.now()}`, metadata: { source: 'manual' } } : null
+                        ].filter(Boolean)
+                      })
+                    });
+                    alert('Контент сохранён и добавлен в RAG!');
+                    setPainPoint('');
+                    setBenefit('');
+                  } catch (err) {
+                    alert('Ошибка: ' + err);
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                disabled={saving}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  background: saving ? '#94a3b8' : 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: saving ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <Icon name="Save" size={20} />
+                {saving ? 'Сохраняю...' : 'Сохранить в базу знаний'}
+              </button>
             </div>
           </div>
         )}
