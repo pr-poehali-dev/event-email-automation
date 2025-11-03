@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Calendar, Edit, Trash2, Sparkles } from 'lucide-react';
+import { Plus, Calendar, Edit, Trash2, Sparkles, X } from 'lucide-react';
 
 interface Event {
   id: number;
@@ -27,11 +27,20 @@ export default function EventsManager() {
 
   const loadEvents = async () => {
     setLoading(true);
-    setLoading(false);
+    setTimeout(() => setLoading(false), 300);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const newEvent: Event = {
+      id: Date.now(),
+      name: formData.name,
+      description: formData.description,
+      event_date: formData.event_date || null,
+      status: formData.status,
+      created_at: new Date().toISOString()
+    };
+    setEvents([...events, newEvent]);
     setShowForm(false);
     setFormData({ name: '', description: '', event_date: '', status: 'draft' });
   };
@@ -147,6 +156,166 @@ export default function EventsManager() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {showForm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '20px',
+            padding: '2.5rem',
+            maxWidth: '600px',
+            width: '90%',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
+            position: 'relative'
+          }}>
+            <button
+              onClick={() => setShowForm(false)}
+              style={{
+                position: 'absolute',
+                top: '1.5rem',
+                right: '1.5rem',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#64748b'
+              }}
+            >
+              <X style={{ width: '24px', height: '24px' }} />
+            </button>
+
+            <h3 style={{
+              fontSize: '1.875rem',
+              fontWeight: 'bold',
+              marginBottom: '2rem',
+              background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              Создать событие
+            </h3>
+
+            <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#1e293b' }}>
+                  Название события
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.875rem',
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '1rem',
+                    outline: 'none',
+                    transition: 'border 0.2s'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#8B5CF6'}
+                  onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#1e293b' }}>
+                  Описание
+                </label>
+                <textarea
+                  required
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '0.875rem',
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '1rem',
+                    outline: 'none',
+                    transition: 'border 0.2s',
+                    resize: 'vertical'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#8B5CF6'}
+                  onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#1e293b' }}>
+                  Дата и время
+                </label>
+                <input
+                  type="datetime-local"
+                  value={formData.event_date}
+                  onChange={(e) => setFormData({...formData, event_date: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.875rem',
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '1rem',
+                    outline: 'none',
+                    transition: 'border 0.2s'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#8B5CF6'}
+                  onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+                <button
+                  type="submit"
+                  style={{
+                    flex: 1,
+                    padding: '1rem',
+                    background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s'
+                  }}
+                >
+                  Создать
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  style={{
+                    flex: 1,
+                    padding: '1rem',
+                    background: '#f1f5f9',
+                    color: '#64748b',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Отмена
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

@@ -1,6 +1,22 @@
-import { Plus, Send, Zap, Mail, DollarSign, Clock } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Send, Zap, Mail, DollarSign, Clock, X } from 'lucide-react';
+
+interface Campaign {
+  id: number;
+  name: string;
+  type: string;
+  description: string;
+  createdAt: string;
+}
 
 export default function CampaignsManager() {
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'announcement',
+    description: ''
+  });
   const types = [
     { emoji: Mail, title: 'Анонс', desc: 'Информирование о событии', color: '#8B5CF6' },
     { emoji: DollarSign, title: 'Продажа', desc: 'Прямая продажа билетов', color: '#10B981' },
@@ -26,6 +42,7 @@ export default function CampaignsManager() {
           </p>
         </div>
         <button
+          onClick={() => setShowForm(true)}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -139,6 +156,229 @@ export default function CampaignsManager() {
           </p>
         </div>
       </div>
+
+      {campaigns.length > 0 && (
+        <div style={{ display: 'grid', gap: '1.5rem', marginTop: '2.5rem' }}>
+          {campaigns.map((campaign) => {
+            const typeConfig = campaign.type === 'announcement' 
+              ? { icon: Mail, color: '#8B5CF6', label: 'Анонс' }
+              : campaign.type === 'sale'
+              ? { icon: DollarSign, color: '#10B981', label: 'Продажа' }
+              : { icon: Clock, color: '#EF4444', label: 'Дедлайн' };
+            const Icon = typeConfig.icon;
+            
+            return (
+              <div
+                key={campaign.id}
+                style={{
+                  background: 'white',
+                  borderRadius: '16px',
+                  padding: '2rem',
+                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.08)',
+                  border: `2px solid ${typeConfig.color}20`
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    background: `linear-gradient(135deg, ${typeConfig.color} 0%, ${typeConfig.color}dd 100%)`,
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Icon style={{ width: '24px', height: '24px', color: 'white' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1e293b' }}>
+                        {campaign.name}
+                      </h3>
+                      <span style={{
+                        padding: '0.25rem 0.75rem',
+                        background: `${typeConfig.color}20`,
+                        color: typeConfig.color,
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600
+                      }}>
+                        {typeConfig.label}
+                      </span>
+                    </div>
+                    <p style={{ color: '#64748b' }}>{campaign.description}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showForm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '20px',
+            padding: '2.5rem',
+            maxWidth: '600px',
+            width: '90%',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
+            position: 'relative'
+          }}>
+            <button
+              onClick={() => setShowForm(false)}
+              style={{
+                position: 'absolute',
+                top: '1.5rem',
+                right: '1.5rem',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#64748b'
+              }}
+            >
+              <X style={{ width: '24px', height: '24px' }} />
+            </button>
+
+            <h3 style={{
+              fontSize: '1.875rem',
+              fontWeight: 'bold',
+              marginBottom: '2rem',
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              Создать кампанию
+            </h3>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const newCampaign: Campaign = {
+                id: Date.now(),
+                name: formData.name,
+                type: formData.type,
+                description: formData.description,
+                createdAt: new Date().toISOString()
+              };
+              setCampaigns([...campaigns, newCampaign]);
+              setShowForm(false);
+              setFormData({ name: '', type: 'announcement', description: '' });
+            }}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#1e293b' }}>
+                  Название кампании
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.875rem',
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '1rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#1e293b' }}>
+                  Тип письма
+                </label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({...formData, type: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '0.875rem',
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '1rem',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="announcement">Анонс</option>
+                  <option value="sale">Продажа</option>
+                  <option value="deadline">Дедлайн</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#1e293b' }}>
+                  Описание
+                </label>
+                <textarea
+                  required
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '0.875rem',
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '1rem',
+                    outline: 'none',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+                <button
+                  type="submit"
+                  style={{
+                    flex: 1,
+                    padding: '1rem',
+                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Создать
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  style={{
+                    flex: 1,
+                    padding: '1rem',
+                    background: '#f1f5f9',
+                    color: '#64748b',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Отмена
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
