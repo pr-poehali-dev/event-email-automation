@@ -201,8 +201,21 @@ export default function TemplatesManager() {
                   </p>
                 </div>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setSelectedTemplate(template);
+                    
+                    try {
+                      const response = await fetch(`https://functions.poehali.dev/68c6506f-0606-43d5-8c75-f4b1fd9e1c12?id=${template.id}`);
+                      if (response.ok) {
+                        const data = await response.json();
+                        if (data.mappings && data.mappings.length > 0) {
+                          setMappings(data.mappings);
+                        }
+                      }
+                    } catch (err) {
+                      console.error('Error loading mappings:', err);
+                    }
+                    
                     setShowGenerator(true);
                   }}
                   style={{
@@ -980,7 +993,28 @@ export default function TemplatesManager() {
 
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button
-                onClick={() => {
+                onClick={async () => {
+                  if (selectedTemplate?.id) {
+                    try {
+                      await fetch('https://functions.poehali.dev/68c6506f-0606-43d5-8c75-f4b1fd9e1c12', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                          name: selectedTemplate.name,
+                          html_content: selectedTemplate.html_content || '',
+                          analyzed_blocks: selectedTemplate.analyzed_blocks,
+                          required_variables: selectedTemplate.required_variables,
+                          template_with_variables: selectedTemplate.template_with_variables,
+                          conditions: selectedTemplate.conditions,
+                          mappings: mappings
+                        })
+                      });
+                    } catch (err) {
+                      console.error('Error saving mappings:', err);
+                    }
+                  }
                   setShowMappingEditor(false);
                   setShowGenerator(true);
                 }}

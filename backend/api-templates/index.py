@@ -34,15 +34,46 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     
     try:
         if method == 'GET':
-            cur.execute("SELECT * FROM email_templates ORDER BY created_at DESC")
-            results = cur.fetchall()
+            params = event.get('queryStringParameters', {}) or {}
+            template_id = params.get('id')
             
-            return {
-                'statusCode': 200,
-                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps([dict(row) for row in results], default=str),
-                'isBase64Encoded': False
-            }
+            if template_id:
+                cur.execute("SELECT * FROM email_templates WHERE id = %s", (template_id,))
+                template = cur.fetchone()
+                
+                if not template:
+                    return {
+                        'statusCode': 404,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({'error': 'Template not found'}),
+                        'isBase64Encoded': False
+                    }
+                
+                cur.execute(
+                    "SELECT variable, source, transform, value FROM template_mappings WHERE template_id = %s",
+                    (template_id,)
+                )
+                mappings = cur.fetchall()
+                
+                result = dict(template)
+                result['mappings'] = [dict(m) for m in mappings]
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps(result, default=str),
+                    'isBase64Encoded': False
+                }
+            else:
+                cur.execute("SELECT * FROM email_templates ORDER BY created_at DESC")
+                results = cur.fetchall()
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps([dict(row) for row in results], default=str),
+                    'isBase64Encoded': False
+                }
         
         elif method == 'POST':
             body_data = json.loads(event.get('body', '{}'))
@@ -52,6 +83,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             required_variables = body_data.get('required_variables')
             template_with_variables = body_data.get('template_with_variables')
             conditions = body_data.get('conditions')
+            mappings = body_data.get('mappings')
             
             if not all([name, html_content]):
                 return {
@@ -72,6 +104,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                  json.dumps(conditions) if conditions else None)
             )
             result = cur.fetchone()
+            template_id = result['id']
+            
+            if mappings:
+                for mapping in mappings:
+                    cur.execute(
+                        """INSERT INTO template_mappings 
+                        (template_id, variable, source, transform, value) 
+                        VALUES (%s, %s, %s, %s, %s)""",
+                        (template_id, mapping['variable'], mapping['source'], 
+                         mapping.get('transform'), mapping.get('value'))
+                    )
+            
             conn.commit()
             
             return {
