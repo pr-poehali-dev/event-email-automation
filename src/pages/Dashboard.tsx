@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Calendar, BookOpen, FileText, Send, BarChart3, Database } from 'lucide-react';
+import { Calendar, BookOpen, FileText, Send, BarChart3, Database, Mail } from 'lucide-react';
 import EventsManager from '../components/EventsManager';
 import KnowledgeManager from '../components/KnowledgeManager';
 import TemplatesManager from '../components/TemplatesManager';
 import CampaignsManager from '../components/CampaignsManager';
 import EventManager from '../components/EventManager';
 import RAGManager from '../components/RAGManager';
+import EmailGenerator from '../components/EmailGenerator';
 
-type View = 'events' | 'knowledge' | 'templates' | 'campaigns' | 'analytics' | 'kb-events' | 'rag';
+type View = 'events' | 'knowledge' | 'templates' | 'campaigns' | 'analytics' | 'kb-events' | 'rag' | 'generate';
 
 export default function Dashboard() {
   const [currentView, setCurrentView] = useState<View>('events');
@@ -18,6 +19,7 @@ export default function Dashboard() {
     { id: 'knowledge' as View, label: 'База знаний', icon: BookOpen, color: '#06B6D4' },
     { id: 'rag' as View, label: 'RAG Поиск', icon: Database, color: '#8B5CF6' },
     { id: 'templates' as View, label: 'Шаблоны', icon: FileText, color: '#F59E0B' },
+    { id: 'generate' as View, label: 'Генерация писем', icon: Mail, color: '#667eea' },
     { id: 'campaigns' as View, label: 'Кампании', icon: Send, color: '#10B981' },
     { id: 'analytics' as View, label: 'Аналитика', icon: BarChart3, color: '#EF4444' },
   ];
@@ -144,6 +146,7 @@ export default function Dashboard() {
             {currentView === 'knowledge' && <KnowledgeManager />}
             {currentView === 'rag' && <RAGManager />}
             {currentView === 'templates' && <TemplatesManager />}
+            {currentView === 'generate' && <EmailGenerator />}
             {currentView === 'campaigns' && <CampaignsManager />}
             {currentView === 'analytics' && (
               <div style={{ textAlign: 'center', paddingTop: '5rem', color: '#64748b' }}>
