@@ -35,6 +35,8 @@ export default function TemplatesManager() {
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [showGenerator, setShowGenerator] = useState(false);
+  const [showMappingEditor, setShowMappingEditor] = useState(false);
+  const [mappings, setMappings] = useState<Array<{variable: string; source: string; transform?: string; value?: string}>>([]);
   const [generating, setGenerating] = useState(false);
   const [generatedEmail, setGeneratedEmail] = useState<GeneratedEmail | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -309,20 +311,28 @@ export default function TemplatesManager() {
                         },
                         body: JSON.stringify({
                           name: file.name,
-                          html_content: htmlContent
+                          html_content: htmlContent,
+                          analyzed_blocks: analysis.variables,
+                          required_variables: analysis.required_variables,
+                          template_with_variables: analysis.template_html,
+                          conditions: analysis.conditions
                         })
                       });
                       
                       if (uploadResponse.ok) {
                         const newTemplate = await uploadResponse.json();
                         await loadTemplates();
-                        setTimeout(() => {
-                          setShowUpload(false);
-                          setAnalysisResult(null);
-                          setAnalyzing(false);
-                          setSelectedTemplate(newTemplate);
-                          setShowGenerator(true);
-                        }, 2000);
+                        
+                        const defaultMappings = analysis.variables.map((v: any) => ({
+                          variable: v.name,
+                          source: v.type === 'cta' ? 'static' : 'Event.name',
+                          transform: v.type === 'speaker' ? 'render_speakers_cards' : undefined,
+                          value: v.type === 'cta' ? 'Зарегистрироваться' : undefined
+                        }));
+                        
+                        setMappings(defaultMappings);
+                        setSelectedTemplate({...newTemplate, analyzed_blocks: analysis.variables, required_variables: analysis.required_variables});
+                        setAnalyzing(false);
                       }
                     }
                   } catch (error) {
@@ -380,20 +390,44 @@ export default function TemplatesManager() {
                       <p style={{ color: '#64748b', marginBottom: '0.75rem' }}>
                         Найдено блоков: <strong style={{ color: '#F59E0B' }}>{analysisResult.blocks_count}</strong>
                       </p>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        {analysisResult.variables?.slice(0, 6).map((v: any, i: number) => (
+                      <p style={{ color: '#64748b', marginBottom: '0.75rem' }}>
+                        Обязательные переменные: <strong style={{ color: '#EF4444' }}>{analysisResult.required_variables?.length || 0}</strong>
+                      </p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                        {analysisResult.variables?.map((v: any, i: number) => (
                           <span key={i} style={{
                             padding: '0.25rem 0.75rem',
-                            background: 'white',
+                            background: v.is_required ? '#FEE2E2' : 'white',
                             borderRadius: '6px',
                             fontSize: '0.75rem',
-                            color: '#F59E0B',
-                            fontWeight: 600
+                            color: v.is_required ? '#EF4444' : '#F59E0B',
+                            fontWeight: 600,
+                            border: v.is_required ? '1px solid #FCA5A5' : 'none'
                           }}>
-                            {v.type}
+                            {v.is_required && '❗'} {v.name}
                           </span>
                         ))}
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowUpload(false);
+                          setShowMappingEditor(true);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem',
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '0.9375rem',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Настроить маппинг переменных
+                      </button>
                     </div>
                   )}
                 </div>
@@ -513,7 +547,7 @@ export default function TemplatesManager() {
                       content_plan: {
                         topic: formData.get('topic')
                       },
-                      mappings: [
+                      mappings: mappings.length > 0 ? mappings : [
                         { variable: 'cta_text', source: 'static', value: 'Зарегистрироваться' },
                         { variable: 'cta_text_2', source: 'static', value: 'Зарегистрироваться' }
                       ]
@@ -569,6 +603,45 @@ export default function TemplatesManager() {
                     }}
                   />
                 </div>
+
+                {mappings.length > 0 && (
+                  <div style={{ 
+                    marginBottom: '1.5rem', 
+                    background: '#F0F9FF', 
+                    padding: '1rem', 
+                    borderRadius: '8px',
+                    border: '1px solid #BAE6FD'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0C4A6E', margin: 0 }}>
+                        📌 Маппинг переменных: {mappings.length}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowGenerator(false);
+                          setShowMappingEditor(true);
+                        }}
+                        style={{
+                          padding: '0.25rem 0.75rem',
+                          background: '#0EA5E9',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Изменить
+                      </button>
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: '#0369A1', margin: 0 }}>
+                      {mappings.filter(m => m.source === 'static').length} статических, {' '}
+                      {mappings.filter(m => m.source.startsWith('Event.')).length} из события
+                    </p>
+                  </div>
+                )}
 
                 <button
                   type="submit"
@@ -744,6 +817,203 @@ export default function TemplatesManager() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {showMappingEditor && selectedTemplate && analysisResult && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '20px',
+            padding: '2.5rem',
+            maxWidth: '1000px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)'
+          }}>
+            <button
+              onClick={() => setShowMappingEditor(false)}
+              style={{
+                position: 'absolute',
+                top: '1.5rem',
+                right: '1.5rem',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#64748b'
+              }}
+            >
+              <X style={{ width: '24px', height: '24px' }} />
+            </button>
+
+            <h3 style={{
+              fontSize: '1.875rem',
+              fontWeight: 'bold',
+              marginBottom: '1rem',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              Настройка маппинга переменных
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '2rem' }}>
+              Шаблон: {selectedTemplate.name} | Переменных: {analysisResult.variables.length} | Обязательных: {analysisResult.required_variables?.length || 0}
+            </p>
+
+            <div style={{ marginBottom: '1.5rem', background: '#FEF3C7', padding: '1rem', borderRadius: '8px', border: '2px solid #FCD34D' }}>
+              <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
+                💡 Обязательные переменные помечены красным. Убедитесь, что все источники данных настроены правильно.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '2rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #E2E8F0' }}>
+                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#475569' }}>Переменная</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#475569' }}>Тип</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#475569' }}>Источник</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#475569' }}>Трансформ</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, color: '#475569' }}>Значение</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mappings.map((mapping, idx) => {
+                    const varInfo = analysisResult.variables.find((v: any) => v.name === mapping.variable);
+                    return (
+                      <tr key={idx} style={{ borderBottom: '1px solid #E2E8F0', background: varInfo?.is_required ? '#FEF2F2' : 'white' }}>
+                        <td style={{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, color: varInfo?.is_required ? '#EF4444' : '#1E293B' }}>
+                          {varInfo?.is_required && '⚠️ '}{mapping.variable}
+                        </td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#64748B' }}>
+                          <span style={{ padding: '0.25rem 0.5rem', background: '#F1F5F9', borderRadius: '4px' }}>
+                            {varInfo?.type}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <select
+                            value={mapping.source}
+                            onChange={(e) => {
+                              const newMappings = [...mappings];
+                              newMappings[idx].source = e.target.value;
+                              setMappings(newMappings);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '0.5rem',
+                              borderRadius: '6px',
+                              border: '1px solid #E2E8F0',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            <option value="static">Статическое значение</option>
+                            <option value="Event.name">Event.name</option>
+                            <option value="Event.date">Event.date</option>
+                            <option value="Event.speakers">Event.speakers</option>
+                            <option value="Event.agenda">Event.agenda</option>
+                            <option value="ContentPlan.topic">ContentPlan.topic</option>
+                          </select>
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <select
+                            value={mapping.transform || ''}
+                            onChange={(e) => {
+                              const newMappings = [...mappings];
+                              newMappings[idx].transform = e.target.value || undefined;
+                              setMappings(newMappings);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '0.5rem',
+                              borderRadius: '6px',
+                              border: '1px solid #E2E8F0',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            <option value="">Без трансформа</option>
+                            <option value="render_speakers_cards">render_speakers_cards</option>
+                            <option value="render_agenda_ul">render_agenda_ul</option>
+                            <option value="short_intro">short_intro</option>
+                          </select>
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          {mapping.source === 'static' && (
+                            <input
+                              type="text"
+                              value={mapping.value || ''}
+                              onChange={(e) => {
+                                const newMappings = [...mappings];
+                                newMappings[idx].value = e.target.value;
+                                setMappings(newMappings);
+                              }}
+                              placeholder="Введите значение"
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                borderRadius: '6px',
+                                border: '1px solid #E2E8F0',
+                                fontSize: '0.875rem'
+                              }}
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                onClick={() => {
+                  setShowMappingEditor(false);
+                  setShowGenerator(true);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Сохранить и перейти к генерации
+              </button>
+              <button
+                onClick={() => setShowMappingEditor(false)}
+                style={{
+                  padding: '1rem 2rem',
+                  background: '#F1F5F9',
+                  color: '#64748B',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Отмена
+              </button>
+            </div>
           </div>
         </div>
       )}

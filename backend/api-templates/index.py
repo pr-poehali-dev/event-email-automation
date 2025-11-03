@@ -48,6 +48,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body_data = json.loads(event.get('body', '{}'))
             name = body_data.get('name')
             html_content = body_data.get('html_content')
+            analyzed_blocks = body_data.get('analyzed_blocks')
+            required_variables = body_data.get('required_variables')
+            template_with_variables = body_data.get('template_with_variables')
+            conditions = body_data.get('conditions')
             
             if not all([name, html_content]):
                 return {
@@ -58,8 +62,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 }
             
             cur.execute(
-                "INSERT INTO email_templates (name, html_content, type, is_active) VALUES (%s, %s, %s, %s) RETURNING *",
-                (name, html_content, 'custom', True)
+                """INSERT INTO email_templates 
+                (name, html_content, type, is_active, analyzed_blocks, required_variables, template_with_variables, conditions) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
+                (name, html_content, 'custom', True, 
+                 json.dumps(analyzed_blocks) if analyzed_blocks else None,
+                 json.dumps(required_variables) if required_variables else None,
+                 template_with_variables,
+                 json.dumps(conditions) if conditions else None)
             )
             result = cur.fetchone()
             conn.commit()
