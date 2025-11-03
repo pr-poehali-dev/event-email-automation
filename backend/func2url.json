@@ -1,4 +1,6 @@
 {
+  "nunjucks-renderer": "https://functions.poehali.dev/fbb95390-30eb-4b92-befe-6577bc87098b",
+  "content-generator": "https://functions.poehali.dev/87e8705d-9622-4edc-9447-0613454c38d1",
   "api-templates": "https://functions.poehali.dev/68c6506f-0606-43d5-8c75-f4b1fd9e1c12",
   "api-knowledge": "https://functions.poehali.dev/1793bb22-ead4-461c-a1dc-99d12754688c",
   "api-events": "https://functions.poehali.dev/5d528b9a-f814-4e0a-9250-d3a7bc40acb6",

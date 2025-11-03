@@ -1,0 +1,26 @@
+{
+  "tests": [
+    {
+      "name": "Render Nunjucks template",
+      "method": "POST",
+      "body": {
+        "template_html": "<h1>{{hero.title}}</h1>{% if has_agenda %}<ul>{% for item in agenda.items %}<li>{{item.time}} - {{item.topic}}</li>{% endfor %}</ul>{% endif %}",
+        "content": {
+          "hero": {"title": "Test Event"},
+          "has_agenda": true,
+          "agenda": {
+            "items": [
+              {"time": "10:00", "topic": "Opening"}
+            ]
+          }
+        }
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "html": "string",
+        "content_keys": "array"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

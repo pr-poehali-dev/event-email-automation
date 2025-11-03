@@ -1,0 +1,20 @@
+{
+  "tests": [
+    {
+      "name": "Generate content for event",
+      "method": "POST",
+      "body": {
+        "event_id": 1,
+        "segment_id": 1
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "content": "object",
+        "segment": "string",
+        "copy_pattern": "string",
+        "block_order": "array"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

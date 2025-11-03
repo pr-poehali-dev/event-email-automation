@@ -240,8 +240,80 @@ export default function TemplatesManager() {
                   </button>
                   
                   <button
-                    onClick={() => {
-                      alert('Начинаем рефакторинг на архитектуру v2:\n\n1. Контент (JSON) → Рендерер + Шаблон → HTML\n2. Семантические плейсхолдеры: {{hero.title}}\n3. Условные блоки: {% if has_agenda %}\n4. Маппинг: сегменты → pain points → блоки\n5. Рендерер: Nunjucks');
+                    onClick={async () => {
+                      setSelectedTemplate(template);
+                      
+                      const demoContent = {
+                        hero: { title: template.name, subtitle: 'Новая архитектура v2', preheader: 'Тестируем Nunjucks' },
+                        has_agenda: true,
+                        agenda: {
+                          items: [
+                            { time: '10:00', topic: 'Открытие', speaker: 'Спикер 1' },
+                            { time: '11:00', topic: 'Доклад', speaker: 'Спикер 2' }
+                          ]
+                        },
+                        cta: { text: 'Зарегистрироваться', url: '#', style: 'primary' }
+                      };
+                      
+                      const demoTemplate = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>{{hero.title}}</title></head>
+<body style="font-family: Arial; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; padding: 40px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px;">
+    <h1 style="margin: 0 0 10px 0;">{{hero.title}}</h1>
+    <p style="margin: 0; font-size: 18px;">{{hero.subtitle}}</p>
+  </div>
+  
+  {% if has_agenda %}
+  <div style="margin: 30px 0;">
+    <h2 style="color: #1e293b;">Программа</h2>
+    <ul style="list-style: none; padding: 0;">
+      {% for item in agenda.items %}
+      <li style="padding: 15px; background: #f8fafc; margin: 10px 0; border-radius: 8px; border-left: 4px solid #667eea;">
+        <strong>{{item.time}}</strong> - {{item.topic}}
+        <br><small style="color: #64748b;">Спикер: {{item.speaker}}</small>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  
+  <div style="text-align: center; margin: 40px 0;">
+    <a href="{{cta.url}}" style="display: inline-block; padding: 15px 40px; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+      {{cta.text}}
+    </a>
+  </div>
+</body>
+</html>`;
+                      
+                      try {
+                        const response = await fetch('https://functions.poehali.dev/fbb95390-30eb-4b92-befe-6577bc87098b', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            template_html: demoTemplate,
+                            content: demoContent
+                          })
+                        });
+                        
+                        if (response.ok) {
+                          const data = await response.json();
+                          setGeneratedEmail({
+                            ...data,
+                            subject: `${demoContent.hero.title} - v2 Demo`,
+                            validation: { valid: true, errors: [] },
+                            mapping_log: [
+                              { variable: 'hero.title', value: demoContent.hero.title, source: 'JSON' },
+                              { variable: 'agenda.items', value: `${demoContent.agenda.items.length} элементов`, source: 'JSON' }
+                            ]
+                          });
+                          setShowGenerator(true);
+                        }
+                      } catch (err) {
+                        console.error('v2 render error:', err);
+                        alert('Ошибка рендера v2: ' + err);
+                      }
                     }}
                     style={{
                       padding: '0.75rem 1.5rem',
