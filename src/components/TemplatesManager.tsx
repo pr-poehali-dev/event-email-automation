@@ -12,6 +12,8 @@ export default function TemplatesManager() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -236,23 +238,46 @@ export default function TemplatesManager() {
                 const reader = new FileReader();
                 reader.onload = async (event) => {
                   try {
-                    const response = await fetch('https://functions.poehali.dev/68c6506f-0606-43d5-8c75-f4b1fd9e1c12', {
+                    setAnalyzing(true);
+                    const htmlContent = event.target?.result as string;
+                    
+                    const analyzeResponse = await fetch('https://functions.poehali.dev/45e6f3f6-377e-4e0d-9350-09aa87d3e584', {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json'
                       },
                       body: JSON.stringify({
-                        name: file.name,
-                        html_content: event.target?.result as string
+                        html_content: htmlContent
                       })
                     });
                     
-                    if (response.ok) {
-                      await loadTemplates();
-                      setShowUpload(false);
+                    if (analyzeResponse.ok) {
+                      const analysis = await analyzeResponse.json();
+                      setAnalysisResult(analysis);
+                      
+                      const uploadResponse = await fetch('https://functions.poehali.dev/68c6506f-0606-43d5-8c75-f4b1fd9e1c12', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                          name: file.name,
+                          html_content: htmlContent
+                        })
+                      });
+                      
+                      if (uploadResponse.ok) {
+                        await loadTemplates();
+                        setTimeout(() => {
+                          setShowUpload(false);
+                          setAnalysisResult(null);
+                          setAnalyzing(false);
+                        }, 3000);
+                      }
                     }
                   } catch (error) {
                     console.error('Failed to upload template:', error);
+                    setAnalyzing(false);
                   }
                 };
                 reader.readAsText(file);
@@ -288,22 +313,59 @@ export default function TemplatesManager() {
                 />
               </div>
 
+              {analyzing && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)',
+                  borderRadius: '12px',
+                  padding: '1.5rem',
+                  marginBottom: '1.5rem',
+                  border: '2px solid rgba(245, 158, 11, 0.2)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <Sparkles style={{ width: '24px', height: '24px', color: '#F59E0B' }} />
+                    <p style={{ fontWeight: 600, color: '#1e293b' }}>ИИ анализирует шаблон...</p>
+                  </div>
+                  {analysisResult && (
+                    <div>
+                      <p style={{ color: '#64748b', marginBottom: '0.75rem' }}>
+                        Найдено блоков: <strong style={{ color: '#F59E0B' }}>{analysisResult.blocks_count}</strong>
+                      </p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {analysisResult.variables?.slice(0, 6).map((v: any, i: number) => (
+                          <span key={i} style={{
+                            padding: '0.25rem 0.75rem',
+                            background: 'white',
+                            borderRadius: '6px',
+                            fontSize: '0.75rem',
+                            color: '#F59E0B',
+                            fontWeight: 600
+                          }}>
+                            {v.type}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button
                   type="submit"
+                  disabled={analyzing}
                   style={{
                     flex: 1,
                     padding: '1rem',
-                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                    background: analyzing ? '#9CA3AF' : 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
                     color: 'white',
                     border: 'none',
                     borderRadius: '12px',
                     fontSize: '1rem',
                     fontWeight: 600,
-                    cursor: 'pointer'
+                    cursor: analyzing ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  Загрузить
+                  {analyzing ? 'Анализ...' : 'Загрузить'}
                 </button>
                 <button
                   type="button"
