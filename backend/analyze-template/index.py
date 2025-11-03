@@ -41,6 +41,32 @@ class TemplateAnalyzer(HTMLParser):
                     'attrs': self.current_attrs.copy()
                 })
 
+def detect_repeatable_blocks(html: str) -> List[Dict]:
+    conditions = []
+    
+    speaker_pattern = r'<!--\s*BEGIN:SPEAKER\s*-->(.*?)<!--\s*END:SPEAKER\s*-->'
+    agenda_pattern = r'<!--\s*BEGIN:AGENDA\s*-->(.*?)<!--\s*END:AGENDA\s*-->'
+    
+    speaker_matches = re.findall(speaker_pattern, html, re.DOTALL)
+    if speaker_matches:
+        conditions.append({
+            'type': 'repeatable',
+            'block_name': 'speakers',
+            'template_fragment': speaker_matches[0][:200],
+            'variables': ['speaker_name', 'speaker_role', 'speaker_bio']
+        })
+    
+    agenda_matches = re.findall(agenda_pattern, html, re.DOTALL)
+    if agenda_matches:
+        conditions.append({
+            'type': 'repeatable',
+            'block_name': 'agenda',
+            'template_fragment': agenda_matches[0][:200],
+            'variables': ['agenda_time', 'agenda_title']
+        })
+    
+    return conditions
+
 def detect_block_type_ai(blocks: List[Dict], html_content: str) -> List[Dict]:
     proxy_url = os.environ.get('OPENAI_PROXY_URL', '').strip()
     
@@ -63,11 +89,11 @@ def detect_block_type_ai(blocks: List[Dict], html_content: str) -> List[Dict]:
     system_prompt = f"""Ты — эксперт по email-маркетингу. Проанализируй HTML-шаблон письма и определи тип каждого блока.
 
 ДОСТУПНЫЕ ТИПЫ БЛОКОВ:
-- preheader: Короткий текст-превью (обычно в начале, 50-100 символов)
-- headline: Главный заголовок письма (h1, h2, крупный текст)
+- preheader: Короткий текст-превью (обычно в начале, 50-100 символов) [REQUIRED]
+- headline: Главный заголовок письма (h1, h2, крупный текст) [REQUIRED]
 - subheadline: Подзаголовок, уточнение
 - body: Основной текст, описание
-- cta: Призыв к действию, кнопка (ссылки типа "Зарегистрироваться", "Купить")
+- cta: Призыв к действию, кнопка (ссылки типа "Зарегистрироваться", "Купить") [REQUIRED]
 - agenda: Программа события, расписание
 - speaker: Информация о спикере (имя, должность, фото)
 - benefits: Список преимуществ, выгод
@@ -84,6 +110,7 @@ def detect_block_type_ai(blocks: List[Dict], html_content: str) -> List[Dict]:
 - type: тип блока из списка выше
 - variable_name: предложенное имя переменной (например: event_name, speaker_bio, cta_button)
 - confidence: уверенность в определении типа (0.0-1.0)
+- is_required: true если тип помечен [REQUIRED] (preheader, headline, cta), иначе false
 
 Ответь ТОЛЬКО JSON массивом, без пояснений."""
 
@@ -106,10 +133,12 @@ def detect_block_type_ai(blocks: List[Dict], html_content: str) -> List[Dict]:
             block['block_type'] = detection.get('type', 'other')
             block['variable_name'] = detection.get('variable_name', f'block_{i+1}')
             block['confidence'] = detection.get('confidence', 0.5)
+            block['is_required'] = detection.get('is_required', False)
         else:
             block['block_type'] = 'other'
             block['variable_name'] = f'block_{i+1}'
             block['confidence'] = 0.3
+            block['is_required'] = False
     
     return blocks
 
@@ -168,14 +197,21 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         template_html = create_template_with_variables(html_content, blocks_with_types)
         
+        conditions = detect_repeatable_blocks(html_content)
+        
         variables = [
             {
                 'name': block['variable_name'],
                 'type': block['block_type'],
                 'original_text': block['text'][:200],
-                'confidence': block['confidence']
+                'confidence': block['confidence'],
+                'is_required': block.get('is_required', False)
             }
             for block in blocks_with_types
+        ]
+        
+        required_variables = [
+            var['name'] for var in variables if var.get('is_required', False)
         ]
         
         return {
@@ -186,6 +222,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'template_html': template_html,
                 'blocks': blocks_with_types,
                 'variables': variables,
+                'required_variables': required_variables,
+                'conditions': conditions,
                 'blocks_count': len(blocks_with_types)
             }),
             'isBase64Encoded': False
