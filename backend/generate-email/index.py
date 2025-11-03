@@ -35,6 +35,7 @@ def render_speakers_cards(speakers: List[Dict]) -> str:
     cards = []
     for i, speaker in enumerate(speakers):
         bgcolor = ' bgcolor="#FFF9F2"' if i % 2 == 0 else ''
+        thesis = speaker.get('thesis', speaker.get('description', ''))
         card_html = f'''
           <tr{bgcolor}>
             <td style="padding: 20px 40px;">
@@ -45,8 +46,8 @@ def render_speakers_cards(speakers: List[Dict]) -> str:
                   </td>
                   <td style="padding-left: 15px; font-size: 16px; color: #333333;">
                     <div style="font-size: 14px; color: #999999;">{speaker.get('role', 'Спикер')}</div>
-                    <div style="font-weight: bold; margin: 4px 0 4px 0;">{speaker.get('topic', speaker.get('name', ''))}</div>
-                    {speaker.get('description', '')}
+                    <div style="font-weight: bold; margin: 4px 0 4px 0;">{speaker.get('topic', thesis)}</div>
+                    {thesis}
                   </td>
                 </tr>
               </table>
@@ -158,14 +159,67 @@ def apply_mappings(
     
     return result
 
+RECIPES = {
+    "announce": {
+        "inputs": ["Event", "ContentPlan"],
+        "structure": ["headline", "intro", "cta_text", "cta_url", "speakers_block?"],
+        "tone": "информативный, лаконичный, без давления",
+        "limits": {"subjectMax": 55, "preheaderMin": 35, "preheaderMax": 70},
+        "must": ["чёткая выгода", "дата/место или формат", "1 CTA"]
+    },
+    "sale": {
+        "inputs": ["Event", "ContentPlan", "segments?"],
+        "structure": ["headline", "intro", "offer", "proof", "cta_text", "cta_url"],
+        "tone": "деловой, ориентированный на выгоду",
+        "limits": {"subjectMax": 55, "preheaderMin": 35, "preheaderMax": 70},
+        "must": ["оффер с дедлайном", "соцдоказательство", "1 CTA"]
+    },
+    "pain_sale": {
+        "inputs": ["Event", "Pain", "ContentPlan"],
+        "structure": ["pain", "agitate", "headline", "solution:intro", "proof", "offer", "deadline", "cta_text", "cta_url"],
+        "tone": "эмпатичный, конкретный, без перегиба",
+        "limits": {"subjectMax": 55, "preheaderMin": 35, "preheaderMax": 70},
+        "must": ["одна ключевая боль", "решение через ивент", "дедлайн", "1 CTA"]
+    }
+}
+
+def validate_content(content: Dict[str, Any], recipe: Dict) -> Dict[str, Any]:
+    errors = []
+    limits = recipe.get('limits', {})
+    
+    subject = content.get('subject', '')
+    if len(subject) > limits.get('subjectMax', 55):
+        errors.append({"field": "subject", "issue": "too_long", "max": limits.get('subjectMax', 55), "current": len(subject)})
+    if len(subject) < 10:
+        errors.append({"field": "subject", "issue": "too_short", "min": 10, "current": len(subject)})
+    
+    preheader = content.get('preheader', '')
+    if preheader:
+        if len(preheader) < limits.get('preheaderMin', 35):
+            errors.append({"field": "preheader", "issue": "too_short", "min": limits.get('preheaderMin', 35), "current": len(preheader)})
+        if len(preheader) > limits.get('preheaderMax', 70):
+            errors.append({"field": "preheader", "issue": "too_long", "max": limits.get('preheaderMax', 70), "current": len(preheader)})
+    
+    required_fields = ['headline', 'intro', 'cta_text', 'cta_url']
+    for field in required_fields:
+        if not content.get(field):
+            errors.append({"field": field, "issue": "missing"})
+    
+    return {
+        "status": "OK" if not errors else "ERROR",
+        "errors": errors
+    }
+
 def generate_missing_variables(
     unfilled_vars: List[str],
     knowledge: List[Dict],
     recipe: Dict,
-    event_name: str
+    event: Dict,
+    content_plan: Dict,
+    pain: Optional[Dict] = None
 ) -> Dict[str, str]:
     if not unfilled_vars:
-        return {}
+        return {"subject": content_plan.get('topic', 'Новое письмо'), "preheader": "", "variables": {}}
     
     proxy_url = os.environ.get('OPENAI_PROXY_URL', '').strip()
     
@@ -188,34 +242,57 @@ def generate_missing_variables(
         for item in knowledge
     ])
     
+    event_name = event.get('name', 'Событие')
+    topic = content_plan.get('topic', '')
     tone = recipe.get('tone', 'нейтральный')
-    focus = recipe.get('focus', 'общая информация')
+    must_have = recipe.get('must', [])
+    limits = recipe.get('limits', {})
+    
+    pain_context = ""
+    if pain:
+        segment = pain.get('segment', '')
+        pains_list = pain.get('pains', [])
+        triggers_list = pain.get('triggers', [])
+        pain_context = f"""
+
+БОЛИ СЕГМЕНТА "{segment}":
+{chr(10).join([f'- {p}' for p in pains_list])}
+
+ТРИГГЕРЫ:
+{chr(10).join([f'- {t}' for t in triggers_list])}
+"""
     
     system_prompt = f"""Ты — копирайтер email-маркетинга.
 
 СОБЫТИЕ: {event_name}
+ТЕМА ПИСЬМА: {topic}
 
 РЕЦЕПТ:
 - Тон: {tone}
-- Фокус: {focus}
-
+- Обязательно: {', '.join(must_have)}
+- Лимиты: subject ≤{limits.get('subjectMax', 55)}, preheader {limits.get('preheaderMin', 35)}-{limits.get('preheaderMax', 70)}
+{pain_context}
 БАЗА ЗНАНИЙ:
 {knowledge_text}
 
-Заполни только эти переменные: {', '.join(unfilled_vars)}
+Заполни переменные: {', '.join(unfilled_vars)}
 
 Правила:
 1. Используй ТОЛЬКО информацию из базы знаний
-2. Соблюдай тон и фокус
-3. Пиши коротко, ёмко
-4. Возвращай ТОЛЬКО JSON
+2. Соблюдай тон: {tone}
+3. Включи всё из must: {', '.join(must_have)}
+4. Строго соблюдай лимиты символов
+5. Если есть боли — начни с них
+6. Возвращай ТОЛЬКО валидный JSON
 
-Формат ответа:
+Формат:
 {{
-  "subject": "тема письма (до 55 символов)",
-  "preheader": "прехедер (35-70 символов)",
+  "subject": "до {limits.get('subjectMax', 55)} символов",
+  "preheader": "{limits.get('preheaderMin', 35)}-{limits.get('preheaderMax', 70)} символов",
   "variables": {{
-    "var_name": "значение"
+    "headline": "...",
+    "intro": "...",
+    "speakers_block": [{{"name":"...","role":"...","thesis":"..."}}]
   }}
 }}"""
 
@@ -223,7 +300,7 @@ def generate_missing_variables(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Создай контент для переменных: {', '.join(unfilled_vars)}"}
+            {"role": "user", "content": f"Создай контент для: {', '.join(unfilled_vars)}"}
         ],
         temperature=0.7,
         response_format={"type": "json_object"}
@@ -307,18 +384,21 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         body_data = json.loads(event.get('body', '{}'))
         template_id = body_data.get('template_id')
-        content_type_id = body_data.get('content_type_id')
+        content_type_code = body_data.get('content_type_code', 'announce')
         event_id = body_data.get('event_id')
         content_plan = body_data.get('content_plan', {})
         mappings = body_data.get('mappings', [])
+        pain = body_data.get('pain')
         
-        if not all([template_id, content_type_id, event_id]):
+        if not all([template_id, event_id]):
             return {
                 'statusCode': 400,
                 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'template_id, content_type_id, event_id are required'}),
+                'body': json.dumps({'error': 'template_id, event_id are required'}),
                 'isBase64Encoded': False
             }
+        
+        recipe = RECIPES.get(content_type_code, RECIPES['announce'])
         
         cur.execute("SELECT * FROM email_templates WHERE id = %s", (template_id,))
         template = cur.fetchone()
@@ -328,17 +408,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'statusCode': 404,
                 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
                 'body': json.dumps({'error': 'Template not found'}),
-                'isBase64Encoded': False
-            }
-        
-        cur.execute("SELECT * FROM content_types WHERE id = %s", (content_type_id,))
-        content_type = cur.fetchone()
-        
-        if not content_type:
-            return {
-                'statusCode': 404,
-                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'Content type not found'}),
                 'isBase64Encoded': False
             }
         
@@ -357,9 +426,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         knowledge = cur.fetchall()
         
         template_html = template['html_content']
-        recipe_raw = content_type.get('recipe', '{}')
-        recipe = recipe_raw if isinstance(recipe_raw, dict) else json.loads(recipe_raw) if recipe_raw else {}
-        
         event_dict = dict(event_row)
         
         filled_vars = apply_mappings(mappings, event_dict, content_plan, knowledge)
@@ -374,16 +440,40 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 unfilled_vars,
                 knowledge,
                 recipe,
-                event_dict.get('name', 'Событие')
+                event_dict,
+                content_plan,
+                pain
             )
         
         final_vars = {**filled_vars, **generated.get('variables', {})}
+        
+        if 'speakers_block' in final_vars and isinstance(final_vars['speakers_block'], list):
+            final_vars['speakers_block'] = render_speakers_cards(final_vars['speakers_block'])
+        
         final_html = fill_template(template_html, final_vars)
+        
+        if not final_vars.get('speakers_block'):
+            final_html = re.sub(
+                r'<!-- Спикеры -->.*?<!-- CTA -->',
+                '<!-- CTA -->',
+                final_html,
+                flags=re.DOTALL
+            )
         
         subject = generated.get('subject', content_plan.get('topic', 'Новое письмо'))
         preheader = generated.get('preheader', '')
         
-        validation = validate_email(final_html, subject, preheader)
+        all_content = {
+            'subject': subject,
+            'preheader': preheader,
+            'headline': final_vars.get('headline', ''),
+            'intro': final_vars.get('intro', ''),
+            'cta_text': final_vars.get('cta_text', ''),
+            'cta_url': final_vars.get('cta_url', '')
+        }
+        
+        content_validation = validate_content(all_content, recipe)
+        html_validation = validate_email(final_html, subject, preheader)
         
         return {
             'statusCode': 200,
@@ -394,7 +484,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'html_content': final_html,
                 'variables_from_mappings': filled_vars,
                 'variables_from_gpt': generated.get('variables', {}),
-                'validation': validation
+                'content_validation': content_validation,
+                'html_validation': html_validation,
+                'recipe_used': content_type_code
             }),
             'isBase64Encoded': False
         }
