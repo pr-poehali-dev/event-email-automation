@@ -200,43 +200,68 @@ export default function TemplatesManager() {
                     Загружен: {new Date(template.uploadedAt).toLocaleString('ru-RU')}
                   </p>
                 </div>
-                <button
-                  onClick={async () => {
-                    setSelectedTemplate(template);
-                    
-                    try {
-                      const response = await fetch(`https://functions.poehali.dev/68c6506f-0606-43d5-8c75-f4b1fd9e1c12?id=${template.id}`);
-                      if (response.ok) {
-                        const data = await response.json();
-                        if (data.mappings && data.mappings.length > 0) {
-                          setMappings(data.mappings);
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button
+                    onClick={async () => {
+                      setSelectedTemplate(template);
+                      
+                      try {
+                        const response = await fetch(`https://functions.poehali.dev/68c6506f-0606-43d5-8c75-f4b1fd9e1c12?id=${template.id}`);
+                        if (response.ok) {
+                          const data = await response.json();
+                          if (data.mappings && data.mappings.length > 0) {
+                            setMappings(data.mappings);
+                          }
                         }
+                      } catch (err) {
+                        console.error('Error loading mappings:', err);
                       }
-                    } catch (err) {
-                      console.error('Error loading mappings:', err);
-                    }
-                    
-                    setShowGenerator(true);
-                  }}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '0.9375rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Sparkles style={{ width: '18px', height: '18px' }} />
-                  Сгенерировать письмо
-                </button>
+                      
+                      setShowGenerator(true);
+                    }}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <Sparkles style={{ width: '18px', height: '18px' }} />
+                    Сгенерировать письмо
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      alert('Начинаем рефакторинг на архитектуру v2:\n\n1. Контент (JSON) → Рендерер + Шаблон → HTML\n2. Семантические плейсхолдеры: {{hero.title}}\n3. Условные блоки: {% if has_agenda %}\n4. Маппинг: сегменты → pain points → блоки\n5. Рендерер: Nunjucks');
+                    }}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    v2
+                  </button>
+                </div>
               </div>
             </div>
           ))}
