@@ -198,6 +198,30 @@ export default function TemplatesManager() {
                     Загружен: {new Date(template.uploadedAt).toLocaleString('ru-RU')}
                   </p>
                 </div>
+                <button
+                  onClick={() => {
+                    setSelectedTemplate(template);
+                    setShowGenerator(true);
+                  }}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Sparkles style={{ width: '18px', height: '18px' }} />
+                  Сгенерировать письмо
+                </button>
               </div>
             </div>
           ))}
