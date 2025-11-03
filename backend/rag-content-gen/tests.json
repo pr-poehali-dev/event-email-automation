@@ -1,0 +1,21 @@
+{
+  "tests": [
+    {
+      "name": "Generate content with RAG",
+      "method": "POST",
+      "body": {
+        "event_id": "human24",
+        "prompt": "Напиши короткий абзац про спикеров конференции",
+        "content_types": ["speaker"],
+        "max_length": 300,
+        "top_k": 3
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "generated_text": "string",
+        "sources_used": "number"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

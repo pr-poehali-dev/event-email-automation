@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Calendar, BookOpen, FileText, Send, BarChart3 } from 'lucide-react';
+import { Calendar, BookOpen, FileText, Send, BarChart3, Database } from 'lucide-react';
 import EventsManager from '../components/EventsManager';
 import KnowledgeManager from '../components/KnowledgeManager';
 import TemplatesManager from '../components/TemplatesManager';
 import CampaignsManager from '../components/CampaignsManager';
 import EventManager from '../components/EventManager';
+import RAGManager from '../components/RAGManager';
 
-type View = 'events' | 'knowledge' | 'templates' | 'campaigns' | 'analytics' | 'kb-events';
+type View = 'events' | 'knowledge' | 'templates' | 'campaigns' | 'analytics' | 'kb-events' | 'rag';
 
 export default function Dashboard() {
   const [currentView, setCurrentView] = useState<View>('events');
@@ -15,6 +16,7 @@ export default function Dashboard() {
     { id: 'events' as View, label: 'События', icon: Calendar, color: '#8B5CF6' },
     { id: 'kb-events' as View, label: 'Мероприятия KB', icon: Calendar, color: '#10B981' },
     { id: 'knowledge' as View, label: 'База знаний', icon: BookOpen, color: '#06B6D4' },
+    { id: 'rag' as View, label: 'RAG Поиск', icon: Database, color: '#8B5CF6' },
     { id: 'templates' as View, label: 'Шаблоны', icon: FileText, color: '#F59E0B' },
     { id: 'campaigns' as View, label: 'Кампании', icon: Send, color: '#10B981' },
     { id: 'analytics' as View, label: 'Аналитика', icon: BarChart3, color: '#EF4444' },
@@ -140,6 +142,7 @@ export default function Dashboard() {
             {currentView === 'events' && <EventsManager />}
             {currentView === 'kb-events' && <EventManager />}
             {currentView === 'knowledge' && <KnowledgeManager />}
+            {currentView === 'rag' && <RAGManager />}
             {currentView === 'templates' && <TemplatesManager />}
             {currentView === 'campaigns' && <CampaignsManager />}
             {currentView === 'analytics' && (

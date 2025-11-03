@@ -75,11 +75,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     
     try:
         if force_refresh:
-            cur.execute("DELETE FROM kb_embeddings WHERE event_id = %s", (event_id,))
+            cur.execute("DELETE FROM t_p17985067_event_email_automati.kb_embeddings WHERE event_id = %s", (event_id,))
         
         cur.execute("""
             SELECT speaker_id, name, title, company, topic, bio 
-            FROM kb_speakers 
+            FROM t_p17985067_event_email_automati.kb_speakers 
             WHERE event_id = %s
         """, (event_id,))
         speakers = cur.fetchall()
@@ -89,7 +89,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             text = f"Спикер: {name}. {title or ''} в {company or ''}. Тема доклада: {topic or ''}. Био: {bio or ''}"
             
             cur.execute("""
-                SELECT COUNT(*) FROM kb_embeddings 
+                SELECT COUNT(*) FROM t_p17985067_event_email_automati.kb_embeddings 
                 WHERE event_id = %s AND content_type = 'speaker' AND content_id = %s
             """, (event_id, speaker_id))
             
@@ -117,7 +117,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         cur.execute("""
             SELECT talk_id, title, description, speaker_id, section_id
-            FROM kb_talks 
+            FROM t_p17985067_event_email_automati.kb_talks 
             WHERE event_id = %s
         """, (event_id,))
         talks = cur.fetchall()
@@ -127,7 +127,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             text = f"Доклад: {title or ''}. Описание: {description or ''}"
             
             cur.execute("""
-                SELECT COUNT(*) FROM kb_embeddings 
+                SELECT COUNT(*) FROM t_p17985067_event_email_automati.kb_embeddings 
                 WHERE event_id = %s AND content_type = 'talk' AND content_id = %s
             """, (event_id, talk_id))
             
@@ -140,8 +140,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 embedding_str = json.dumps(embedding_values)
                 
                 cur.execute("""
-                    INSERT INTO kb_embeddings 
-                    (event_id, content_type, content_id, chunk_text, chunk_metadata, embedding_text)
+                    INSERT INTO t_p17985067_event_email_automati.kb_embeddings 
+                    (event_id, content_type, content_id, chunk_text, chunk_metadata, embedding_vector)
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (
                     event_id, 
@@ -154,7 +154,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 chunks_created += 1
         
         cur.execute("""
-            SELECT pain_point FROM kb_content 
+            SELECT pain_point FROM t_p17985067_event_email_automati.kb_content 
             WHERE event_id = %s AND pain_point IS NOT NULL
         """, (event_id,))
         pain_points = cur.fetchall()
@@ -162,7 +162,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         for idx, (pain_point,) in enumerate(pain_points):
             if pain_point and pain_point.strip():
                 cur.execute("""
-                    SELECT COUNT(*) FROM kb_embeddings 
+                    SELECT COUNT(*) FROM t_p17985067_event_email_automati.kb_embeddings 
                     WHERE event_id = %s AND content_type = 'pain_point' AND content_id = %s
                 """, (event_id, f'pain_{idx}'))
                 
@@ -175,8 +175,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     embedding_str = json.dumps(embedding_values)
                     
                     cur.execute("""
-                        INSERT INTO kb_embeddings 
-                        (event_id, content_type, content_id, chunk_text, chunk_metadata, embedding_text)
+                        INSERT INTO t_p17985067_event_email_automati.kb_embeddings 
+                        (event_id, content_type, content_id, chunk_text, chunk_metadata, embedding_vector)
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (
                         event_id, 
@@ -189,7 +189,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     chunks_created += 1
         
         cur.execute("""
-            SELECT benefit FROM kb_content 
+            SELECT benefit FROM t_p17985067_event_email_automati.kb_content 
             WHERE event_id = %s AND benefit IS NOT NULL
         """, (event_id,))
         benefits = cur.fetchall()
@@ -197,7 +197,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         for idx, (benefit,) in enumerate(benefits):
             if benefit and benefit.strip():
                 cur.execute("""
-                    SELECT COUNT(*) FROM kb_embeddings 
+                    SELECT COUNT(*) FROM t_p17985067_event_email_automati.kb_embeddings 
                     WHERE event_id = %s AND content_type = 'benefit' AND content_id = %s
                 """, (event_id, f'benefit_{idx}'))
                 
@@ -210,8 +210,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     embedding_str = json.dumps(embedding_values)
                     
                     cur.execute("""
-                        INSERT INTO kb_embeddings 
-                        (event_id, content_type, content_id, chunk_text, chunk_metadata, embedding_text)
+                        INSERT INTO t_p17985067_event_email_automati.kb_embeddings 
+                        (event_id, content_type, content_id, chunk_text, chunk_metadata, embedding_vector)
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (
                         event_id, 

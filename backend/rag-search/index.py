@@ -87,9 +87,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         query_embedding = response.data[0].embedding
         
         cur.execute("""
-            SELECT id, content_type, content_id, chunk_text, chunk_metadata, embedding_text
-            FROM kb_embeddings
-            WHERE event_id = %s AND embedding_text IS NOT NULL
+            SELECT id, content_type, content_id, chunk_text, chunk_metadata, embedding_vector
+            FROM t_p17985067_event_email_automati.kb_embeddings
+            WHERE event_id = %s AND embedding_vector IS NOT NULL
         """, (event_id,))
         
         rows = cur.fetchall()

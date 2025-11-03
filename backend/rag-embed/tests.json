@@ -1,0 +1,25 @@
+{
+  "tests": [
+    {
+      "name": "Generate embeddings for text chunks",
+      "method": "POST",
+      "body": {
+        "event_id": "human24",
+        "chunks": [
+          {
+            "text": "Тестовый текст для генерации эмбеддинга",
+            "content_type": "test",
+            "content_id": "test-1",
+            "metadata": {"source": "test"}
+          }
+        ]
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "inserted_count": "number",
+        "ids": "array"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
