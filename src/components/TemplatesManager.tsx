@@ -243,36 +243,76 @@ export default function TemplatesManager() {
                     onClick={async () => {
                       setSelectedTemplate(template);
                       
-                      const demoContent = {
-                        hero: { title: template.name, subtitle: 'Новая архитектура v2', preheader: 'Тестируем Nunjucks' },
-                        has_agenda: true,
-                        agenda: {
-                          items: [
-                            { time: '10:00', topic: 'Открытие', speaker: 'Спикер 1' },
-                            { time: '11:00', topic: 'Доклад', speaker: 'Спикер 2' }
-                          ]
-                        },
-                        cta: { text: 'Зарегистрироваться', url: '#', style: 'primary' }
-                      };
+                      try {
+                        const contextResponse = await fetch('https://functions.poehali.dev/e5a899bf-994d-47d8-ad4e-99a64306a4f9', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            event_id: 'human24',
+                            template_type: 'sales_via_pain'
+                          })
+                        });
+                        
+                        if (!contextResponse.ok) {
+                          throw new Error('Failed to build context');
+                        }
+                        
+                        const ctx = await contextResponse.json();
+                        
+                        const demoContent = {
+                          brand: ctx.brand,
+                          event: ctx.event,
+                          meta: ctx.meta,
+                          speakers: ctx.speakers || [],
+                          talks: ctx.talks || [],
+                          hero: {
+                            title: ctx.event.name,
+                            subtitle: 'Практики и кейсы адаптации сотрудников',
+                            preheader: ctx.meta.preheader
+                          },
+                          has_speakers: (ctx.speakers || []).length > 0,
+                          has_agenda: (ctx.talks || []).length > 0,
+                          cta: {
+                            text: ctx.meta.cta_top_text,
+                            url: ctx.meta.cta_top_url,
+                            style: 'primary'
+                          }
+                        };
                       
-                      const demoTemplate = `
+                        const demoTemplate = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><title>{{hero.title}}</title></head>
-<body style="font-family: Arial; max-width: 600px; margin: 0 auto; padding: 20px;">
+<head><meta charset="UTF-8"><title>{{event.name}}</title></head>
+<body style="font-family: Arial; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
   <div style="text-align: center; padding: 40px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px;">
-    <h1 style="margin: 0 0 10px 0;">{{hero.title}}</h1>
+    <p style="margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">{{meta.preheader}}</p>
+    <h1 style="margin: 0 0 10px 0; font-size: 32px;">{{event.name}}</h1>
     <p style="margin: 0; font-size: 18px;">{{hero.subtitle}}</p>
   </div>
   
+  {% if has_speakers %}
+  <div style="margin: 30px 0; background: white; padding: 20px; border-radius: 12px;">
+    <h2 style="color: #1e293b; margin-top: 0;">Спикеры</h2>
+    <div>
+      {% for speaker in speakers %}
+      <div style="padding: 15px; background: #f8fafc; margin: 10px 0; border-radius: 8px; border-left: 4px solid #667eea;">
+        <strong style="font-size: 18px;">{{speaker.name}}</strong>
+        <br><span style="color: #64748b;">{{speaker.title}}, {{speaker.company}}</span>
+        <br><small style="color: #0ea5e9;">Тема: {{speaker.topic}}</small>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  
   {% if has_agenda %}
-  <div style="margin: 30px 0;">
-    <h2 style="color: #1e293b;">Программа</h2>
+  <div style="margin: 30px 0; background: white; padding: 20px; border-radius: 12px;">
+    <h2 style="color: #1e293b; margin-top: 0;">Программа</h2>
     <ul style="list-style: none; padding: 0;">
-      {% for item in agenda.items %}
-      <li style="padding: 15px; background: #f8fafc; margin: 10px 0; border-radius: 8px; border-left: 4px solid #667eea;">
-        <strong>{{item.time}}</strong> - {{item.topic}}
-        <br><small style="color: #64748b;">Спикер: {{item.speaker}}</small>
+      {% for talk in talks %}
+      <li style="padding: 15px; background: #f8fafc; margin: 10px 0; border-radius: 8px; border-left: 4px solid #10b981;">
+        <strong>{{talk.start_time}} - {{talk.end_time}}</strong>: {{talk.title}}
+        <br><small style="color: #64748b;">{{talk.abstract}}</small>
       </li>
       {% endfor %}
     </ul>
@@ -280,15 +320,19 @@ export default function TemplatesManager() {
   {% endif %}
   
   <div style="text-align: center; margin: 40px 0;">
-    <a href="{{cta.url}}" style="display: inline-block; padding: 15px 40px; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+    <a href="{{cta.url}}" style="display: inline-block; padding: 15px 40px; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
       {{cta.text}}
     </a>
   </div>
+  
+  <div style="text-align: center; padding: 20px; color: #64748b; font-size: 12px;">
+    <p>{{brand.legal.senderName}} | {{brand.support_email}}</p>
+    <p>{{brand.legal.unsubscribeText}}</p>
+  </div>
 </body>
 </html>`;
-                      
-                      try {
-                        const response = await fetch('https://functions.poehali.dev/fbb95390-30eb-4b92-befe-6577bc87098b', {
+                        
+                        const renderResponse = await fetch('https://functions.poehali.dev/fbb95390-30eb-4b92-befe-6577bc87098b', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
@@ -297,15 +341,17 @@ export default function TemplatesManager() {
                           })
                         });
                         
-                        if (response.ok) {
-                          const data = await response.json();
+                        if (renderResponse.ok) {
+                          const data = await renderResponse.json();
                           setGeneratedEmail({
                             ...data,
-                            subject: `${demoContent.hero.title} - v2 Demo`,
+                            subject: ctx.meta.subjectA,
                             validation: { valid: true, errors: [] },
                             mapping_log: [
-                              { variable: 'hero.title', value: demoContent.hero.title, source: 'JSON' },
-                              { variable: 'agenda.items', value: `${demoContent.agenda.items.length} элементов`, source: 'JSON' }
+                              { variable: 'event.name', value: ctx.event.name, source: 'Knowledge Base' },
+                              { variable: 'speakers', value: `${ctx.speakers.length} спикеров`, source: 'Knowledge Base' },
+                              { variable: 'talks', value: `${ctx.talks.length} докладов`, source: 'Knowledge Base' },
+                              { variable: 'CTA URL', value: ctx.meta.cta_top_url, source: 'Auto UTM' }
                             ]
                           });
                           setShowGenerator(true);

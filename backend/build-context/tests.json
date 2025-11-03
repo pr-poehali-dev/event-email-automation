@@ -1,0 +1,19 @@
+{
+  "tests": [
+    {
+      "name": "Build context for event",
+      "method": "POST",
+      "body": {
+        "event_id": "human24",
+        "template_type": "sales_via_pain"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "brand": "object",
+        "event": "object",
+        "meta": "object"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
