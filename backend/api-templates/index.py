@@ -58,8 +58,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 }
             
             cur.execute(
-                "INSERT INTO email_templates (name, html_content, status) VALUES (%s, %s, %s) RETURNING *",
-                (name, html_content, 'draft')
+                "INSERT INTO email_templates (name, html_content, type, is_active) VALUES (%s, %s, %s, %s) RETURNING *",
+                (name, html_content, 'custom', True)
             )
             result = cur.fetchone()
             conn.commit()
