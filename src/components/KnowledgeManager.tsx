@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, BookOpen, FileText, Brain, Lightbulb, Users, X } from 'lucide-react';
 
 interface Knowledge {
@@ -10,12 +10,36 @@ interface Knowledge {
 
 export default function KnowledgeManager() {
   const [knowledge, setKnowledge] = useState<Knowledge[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     category: 'speakers',
     title: '',
     content: ''
   });
+
+  useEffect(() => {
+    loadKnowledge();
+  }, []);
+
+  const loadKnowledge = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('https://functions.poehali.dev/1793bb22-ead4-461c-a1dc-99d12754688c');
+      const data = await response.json();
+      const mappedData = data.map((item: any) => ({
+        id: item.id,
+        category: item.content_type,
+        title: item.title,
+        content: item.content
+      }));
+      setKnowledge(mappedData);
+    } catch (error) {
+      console.error('Failed to load knowledge:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   const categories = [
     { icon: Users, title: 'О спикерах', desc: 'Биография, экспертиза', color: '#8B5CF6' },
     { icon: Lightbulb, title: 'Программа', desc: 'Темы, расписание', color: '#06B6D4' },
@@ -152,7 +176,12 @@ export default function KnowledgeManager() {
                   fontSize: '0.875rem',
                   fontWeight: 600
                 }}>
-                  {item.category === 'speakers' ? 'Спикеры' : item.category === 'program' ? 'Программа' : 'Преимущества'}
+                  {item.category === 'speakers' ? 'Спикеры' : 
+                   item.category === 'program' ? 'Программа' : 
+                   item.category === 'benefits' ? 'Преимущества' :
+                   item.category === 'pain_points' ? 'Боли аудитории' :
+                   item.category === 'content_plan' ? 'Контент-план' :
+                   item.category}
                 </span>
               </div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1e293b', marginBottom: '0.75rem' }}>
@@ -213,17 +242,29 @@ export default function KnowledgeManager() {
               Добавить знание
             </h3>
 
-            <form onSubmit={(e) => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
-              const newKnowledge: Knowledge = {
-                id: Date.now(),
-                category: formData.category,
-                title: formData.title,
-                content: formData.content
-              };
-              setKnowledge([...knowledge, newKnowledge]);
-              setShowForm(false);
-              setFormData({ category: 'speakers', title: '', content: '' });
+              try {
+                const response = await fetch('https://functions.poehali.dev/1793bb22-ead4-461c-a1dc-99d12754688c', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    content_type: formData.category,
+                    title: formData.title,
+                    content: formData.content
+                  })
+                });
+                
+                if (response.ok) {
+                  await loadKnowledge();
+                  setShowForm(false);
+                  setFormData({ category: 'speakers', title: '', content: '' });
+                }
+              } catch (error) {
+                console.error('Failed to create knowledge:', error);
+              }
             }}>
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#1e293b' }}>
@@ -244,6 +285,9 @@ export default function KnowledgeManager() {
                   <option value="speakers">О спикерах</option>
                   <option value="program">Программа</option>
                   <option value="benefits">Преимущества</option>
+                  <option value="pain_points">Боли аудитории</option>
+                  <option value="content_plan">Контент-план</option>
+                  <option value="general">Общее</option>
                 </select>
               </div>
 

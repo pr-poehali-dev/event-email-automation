@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Plus, FileText, Upload, Sparkles, CheckCircle, X } from 'lucide-react';
 
 interface Template {
@@ -10,8 +10,32 @@ interface Template {
 
 export default function TemplatesManager() {
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
+  const loadTemplates = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('https://functions.poehali.dev/68c6506f-0606-43d5-8c75-f4b1fd9e1c12');
+      const data = await response.json();
+      const mappedData = data.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        html: item.html_content,
+        uploadedAt: item.created_at
+      }));
+      setTemplates(mappedData);
+    } catch (error) {
+      console.error('Failed to load templates:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   const features = [
     'Preheader и заголовки',
     'CTA кнопки и ссылки',
@@ -204,21 +228,32 @@ export default function TemplatesManager() {
               Загрузить HTML-шаблон
             </h3>
 
-            <form onSubmit={(e) => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
               const fileInput = fileInputRef.current;
               if (fileInput?.files?.[0]) {
                 const file = fileInput.files[0];
                 const reader = new FileReader();
-                reader.onload = (event) => {
-                  const newTemplate: Template = {
-                    id: Date.now(),
-                    name: file.name,
-                    html: event.target?.result as string,
-                    uploadedAt: new Date().toISOString()
-                  };
-                  setTemplates([...templates, newTemplate]);
-                  setShowUpload(false);
+                reader.onload = async (event) => {
+                  try {
+                    const response = await fetch('https://functions.poehali.dev/68c6506f-0606-43d5-8c75-f4b1fd9e1c12', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({
+                        name: file.name,
+                        html_content: event.target?.result as string
+                      })
+                    });
+                    
+                    if (response.ok) {
+                      await loadTemplates();
+                      setShowUpload(false);
+                    }
+                  } catch (error) {
+                    console.error('Failed to upload template:', error);
+                  }
                 };
                 reader.readAsText(file);
               }

@@ -27,22 +27,40 @@ export default function EventsManager() {
 
   const loadEvents = async () => {
     setLoading(true);
-    setTimeout(() => setLoading(false), 300);
+    try {
+      const response = await fetch('https://functions.poehali.dev/5d528b9a-f814-4e0a-9250-d3a7bc40acb6');
+      const data = await response.json();
+      setEvents(data);
+    } catch (error) {
+      console.error('Failed to load events:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newEvent: Event = {
-      id: Date.now(),
-      name: formData.name,
-      description: formData.description,
-      event_date: formData.event_date || null,
-      status: formData.status,
-      created_at: new Date().toISOString()
-    };
-    setEvents([...events, newEvent]);
-    setShowForm(false);
-    setFormData({ name: '', description: '', event_date: '', status: 'draft' });
+    try {
+      const response = await fetch('https://functions.poehali.dev/5d528b9a-f814-4e0a-9250-d3a7bc40acb6', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          date: formData.event_date
+        })
+      });
+      
+      if (response.ok) {
+        await loadEvents();
+        setShowForm(false);
+        setFormData({ name: '', description: '', event_date: '', status: 'draft' });
+      }
+    } catch (error) {
+      console.error('Failed to create event:', error);
+    }
   };
 
   return (
