@@ -38,14 +38,14 @@ export default function EventsManager() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-10">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">События</h2>
-          <p className="text-gray-600 mt-1">Управление мероприятиями и вебинарами</p>
+          <h2 className="text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">События</h2>
+          <p className="text-slate-600 mt-2 text-lg">Управление мероприятиями и вебинарами</p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity shadow-lg"
+          className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl hover:shadow-xl hover:shadow-violet-500/30 transition-all duration-200 font-semibold shadow-lg hover:scale-105"
         >
           <Plus className="w-5 h-5" />
           Создать событие
@@ -53,7 +53,7 @@ export default function EventsManager() {
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/60 p-8 mb-8 animate-fade-in">
           <h3 className="text-xl font-semibold mb-4">Новое событие</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -136,7 +136,7 @@ export default function EventsManager() {
           Загрузка событий...
         </div>
       ) : events.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+        <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/60 p-16 text-center">
           <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-400" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">Нет событий</h3>
           <p className="text-gray-600">Создайте первое событие для начала работы</p>
@@ -146,7 +146,7 @@ export default function EventsManager() {
           {events.map((event) => (
             <div
               key={event.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+              className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/60 p-6 hover:shadow-xl hover:border-violet-200 transition-all duration-200 hover:scale-[1.01]"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">

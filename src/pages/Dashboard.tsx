@@ -19,24 +19,27 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
       <div className="flex">
-        <aside className="w-64 min-h-screen bg-white border-r border-gray-200 shadow-sm">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                <Send className="w-6 h-6 text-white" />
+        <aside className="w-72 min-h-screen bg-white/80 backdrop-blur-xl border-r border-slate-200/60 shadow-xl">
+          <div className="p-6 border-b border-slate-200/60">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-2xl blur opacity-75"></div>
+                <div className="relative w-12 h-12 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <Send className="w-6 h-6 text-white" />
+                </div>
               </div>
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  EmailGen
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                  EmailGen AI
                 </h1>
-                <p className="text-xs text-gray-500">AI Email Platform</p>
+                <p className="text-xs text-slate-500 font-medium">Платформа для email-рассылок</p>
               </div>
             </div>
           </div>
 
-          <nav className="p-4 space-y-1">
+          <nav className="p-4 space-y-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentView === item.id;
@@ -45,21 +48,21 @@ export default function Dashboard() {
                 <button
                   key={item.id}
                   onClick={() => setCurrentView(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 ${
                     isActive
-                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/30 scale-[1.02]'
+                      : 'text-slate-700 hover:bg-slate-100/70 hover:scale-[1.01]'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
+                  <Icon className={`w-5 h-5 ${isActive ? 'drop-shadow-sm' : ''}`} />
+                  <span className="font-semibold text-sm">{item.label}</span>
                 </button>
               );
             })}
           </nav>
         </aside>
 
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-10 max-w-7xl">
           {currentView === 'events' && <EventsManager />}
           {currentView === 'knowledge' && <KnowledgeManager />}
           {currentView === 'templates' && <TemplatesManager />}
