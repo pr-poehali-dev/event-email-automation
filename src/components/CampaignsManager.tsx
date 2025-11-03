@@ -321,22 +321,25 @@ export default function CampaignsManager() {
 
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#1e293b' }}>
-                  Описание
+                  Запрос для RAG поиска
                 </label>
-                <textarea
-                  required
+                <input
+                  type="text"
+                  placeholder="Например: онбординг новичков, программа конференции..."
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  rows={4}
                   style={{
                     width: '100%',
                     padding: '0.875rem',
                     borderRadius: '12px',
                     border: '2px solid #e2e8f0',
                     fontSize: '1rem',
-                    outline: 'none',
-                    resize: 'vertical'
+                    outline: 'none'
                   }}
+                />
+                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem' }}>
+                  RAG найдёт релевантный контент из базы знаний и подставит в письмо
+                </p>
                 />
               </div>
 

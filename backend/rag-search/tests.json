@@ -1,0 +1,16 @@
+{
+  "tests": [
+    {
+      "name": "Search in knowledge base",
+      "method": "GET",
+      "path": "/?event_id=human24&query=онбординг&limit=3",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "status": "success",
+        "query": "string",
+        "results": "array"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

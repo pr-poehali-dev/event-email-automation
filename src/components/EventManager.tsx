@@ -525,6 +525,42 @@ function KnowledgeBaseModal({ event, onClose }: { event: Event; onClose: () => v
             <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
               Спикеры будут автоматически добавлены при импорте программы
             </p>
+            
+            <button
+              onClick={async () => {
+                try {
+                  const response = await fetch('https://functions.poehali.dev/9f4f68ea-4d9d-4c55-bd58-9baded263228', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event_id: event.id, force_refresh: false })
+                  });
+                  const data = await response.json();
+                  if (data.status === 'success') {
+                    alert(`Векторизация завершена! Создано чанков: ${data.chunks_created}`);
+                  } else {
+                    alert('Ошибка векторизации');
+                  }
+                } catch (error) {
+                  alert('Ошибка подключения к API');
+                }
+              }}
+              style={{
+                padding: '1rem 2rem',
+                background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '1rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <Icon name="Zap" size={20} />
+              Векторизовать базу знаний
+            </button>
           </div>
         )}
 

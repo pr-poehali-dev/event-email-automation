@@ -1,4 +1,6 @@
 {
+  "rag-vectorize": "https://functions.poehali.dev/9f4f68ea-4d9d-4c55-bd58-9baded263228",
+  "rag-search": "https://functions.poehali.dev/96b37c31-f435-4039-991a-1241225f381e",
   "import-program": "https://functions.poehali.dev/f96b53c0-3cc5-422e-83b1-bfd535562125",
   "build-context": "https://functions.poehali.dev/e5a899bf-994d-47d8-ad4e-99a64306a4f9",
   "nunjucks-renderer": "https://functions.poehali.dev/fbb95390-30eb-4b92-befe-6577bc87098b",
