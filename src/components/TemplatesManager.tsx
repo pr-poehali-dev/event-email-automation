@@ -11,10 +11,20 @@ interface Template {
 interface GeneratedEmail {
   subject: string;
   preheader: string;
+  fields: any;
   html_content: string;
   content_validation: any;
   html_validation: any;
+  mapping_log: Array<{
+    variable: string;
+    source: string;
+    transform: string;
+    result_preview: string;
+  }>;
   recipe_used: string;
+  recipe_version: string;
+  transform_version: string;
+  inputs_hash: string;
 }
 
 export default function TemplatesManager() {
@@ -608,9 +618,67 @@ export default function TemplatesManager() {
                     color: '#667eea',
                     fontWeight: 600
                   }}>
-                    {generatedEmail.recipe_used}
+                    {generatedEmail.recipe_used} v{generatedEmail.recipe_version}
                   </span>
                 </div>
+
+                {generatedEmail.mapping_log && generatedEmail.mapping_log.length > 0 && (
+                  <div style={{
+                    background: '#fef3c7',
+                    borderRadius: '12px',
+                    padding: '1.5rem',
+                    marginBottom: '1.5rem',
+                    border: '2px solid #fbbf24'
+                  }}>
+                    <strong style={{ color: '#1e293b', display: 'block', marginBottom: '1rem' }}>
+                      📊 Mapping Log ({generatedEmail.mapping_log.length} переменных)
+                    </strong>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {generatedEmail.mapping_log.map((log: any, i: number) => (
+                        <div key={i} style={{
+                          background: 'white',
+                          borderRadius: '8px',
+                          padding: '0.75rem',
+                          fontSize: '0.875rem'
+                        }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                            <strong style={{ color: '#F59E0B' }}>{log.variable}</strong>
+                            <span style={{ color: '#64748b' }}>←</span>
+                            <span style={{ color: '#10b981' }}>{log.source}</span>
+                            {log.transform && (
+                              <>
+                                <span style={{ color: '#64748b' }}>→</span>
+                                <span style={{ color: '#8b5cf6' }}>{log.transform}()</span>
+                              </>
+                            )}
+                          </div>
+                          <div style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                            {log.result_preview}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {generatedEmail.html_validation && generatedEmail.html_validation.warnings?.length > 0 && (
+                  <div style={{
+                    background: '#fef3c7',
+                    borderRadius: '12px',
+                    padding: '1.5rem',
+                    marginBottom: '1.5rem',
+                    border: '2px solid #fbbf24'
+                  }}>
+                    <strong style={{ color: '#1e293b', display: 'block', marginBottom: '0.75rem' }}>
+                      ⚠️ HTML Warnings:
+                    </strong>
+                    <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#92400e' }}>
+                      {generatedEmail.html_validation.warnings.map((warning: string, i: number) => (
+                        <li key={i}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <div style={{
                   background: '#f8fafc',

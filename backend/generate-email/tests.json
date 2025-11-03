@@ -1,18 +1,38 @@
 {
   "tests": [
     {
-      "name": "Generate email with valid data",
+      "name": "Generate email with strict contract",
       "method": "POST",
       "body": {
         "template_id": 1,
-        "content_type_id": 1,
-        "event_id": 1
+        "event_id": 1,
+        "content_type_code": "announce",
+        "content_plan": {
+          "topic": "Test email generation"
+        },
+        "mappings": [
+          {
+            "variable": "cta_text",
+            "source": "static",
+            "value": "Зарегистрироваться"
+          }
+        ]
       },
       "expectedStatus": 200,
       "expectedBody": {
         "subject": "string",
+        "preheader": "string",
         "html_content": "string",
-        "validation": "object"
+        "content_validation": {
+          "status": "string",
+          "errors": "array"
+        },
+        "html_validation": {
+          "is_valid": "boolean",
+          "warnings": "array"
+        },
+        "mapping_log": "array",
+        "recipe_used": "string"
       },
       "bodyMatcher": "partial"
     }

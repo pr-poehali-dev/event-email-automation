@@ -1,20 +1,171 @@
 '''
-Business: Генерация email-контента с маппингами и трансформациями данных
-Args: event - dict с httpMethod, body (template_id, content_type_id, event_id, content_plan)
+Business: Strict JSON I/O contract для детерминированной генерации email
+Args: event - dict с httpMethod, body (валидируется против JSON Schema)
       context - object с attributes: request_id, function_name
-Returns: HTTP response dict с сгенерированным HTML и темой письма
+Returns: HTTP response dict с типизированным выходом + mapping_log
 '''
 import json
 import os
 import re
+import hashlib
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import openai
 import httpx
+from jsonschema import validate, ValidationError as JSONValidationError
+
+RECIPE_VERSION = "1.0.0"
+TRANSFORM_VERSION = "1.0.0"
+
+INPUT_SCHEMA = {
+    "$id": "generate-email-input",
+    "type": "object",
+    "required": ["template_id", "event_id", "content_type_code", "mappings"],
+    "properties": {
+        "template_id": {"type": "integer"},
+        "event_id": {"type": "integer"},
+        "content_type_code": {"type": "string", "enum": ["announce", "sale", "pain_sale"]},
+        "content_plan": {
+            "type": "object",
+            "required": ["topic"],
+            "properties": {"topic": {"type": "string"}}
+        },
+        "pain": {
+            "type": "object",
+            "properties": {
+                "segment": {"type": "string"},
+                "pains": {"type": "array", "items": {"type": "string"}},
+                "triggers": {"type": "array", "items": {"type": "string"}}
+            }
+        },
+        "mappings": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["variable", "source"],
+                "properties": {
+                    "variable": {"type": "string"},
+                    "source": {"type": "string"},
+                    "transform": {"type": "string"},
+                    "value": {"type": ["string", "object", "array", "null"]}
+                }
+            }
+        },
+        "recipe_version": {"type": "string"},
+        "transform_version": {"type": "string"}
+    },
+    "additionalProperties": False
+}
+
+OUTPUT_SCHEMA = {
+    "$id": "generate-email-output",
+    "type": "object",
+    "required": ["subject", "preheader", "html_content", "content_validation", "html_validation", "recipe_used"],
+    "properties": {
+        "subject": {"type": "string", "maxLength": 55},
+        "preheader": {"type": "string", "minLength": 35, "maxLength": 70},
+        "fields": {
+            "type": "object",
+            "properties": {
+                "headline": {"type": "string"},
+                "intro": {"type": "string"},
+                "offer": {"type": "string"},
+                "speakers_block": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "role": {"type": "string"},
+                            "thesis": {"type": "string"}
+                        }
+                    }
+                },
+                "cta_text": {"type": "string"},
+                "cta_url": {"type": "string"},
+                "cta_text_2": {"type": "string"},
+                "cta_url_2": {"type": "string"}
+            },
+            "additionalProperties": True
+        },
+        "html_content": {"type": "string"},
+        "content_validation": {
+            "type": "object",
+            "required": ["status", "errors"],
+            "properties": {
+                "status": {"type": "string", "enum": ["OK", "ERROR"]},
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "field": {"type": "string"},
+                            "issue": {"type": "string"}
+                        }
+                    }
+                }
+            }
+        },
+        "html_validation": {
+            "type": "object",
+            "required": ["is_valid", "warnings"],
+            "properties": {
+                "is_valid": {"type": "boolean"},
+                "warnings": {"type": "array", "items": {"type": "string"}}
+            }
+        },
+        "mapping_log": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "variable": {"type": "string"},
+                    "source": {"type": "string"},
+                    "transform": {"type": "string"},
+                    "result_preview": {"type": "string"}
+                }
+            }
+        },
+        "recipe_used": {"type": "string"}
+    },
+    "additionalProperties": False
+}
+
+RECIPES = {
+    "announce": {
+        "tone": "информативный, лаконичный, без давления",
+        "limits": {"subjectMax": 55, "preheaderMin": 35, "preheaderMax": 70},
+        "must": ["чёткая выгода", "дата/место или формат", "1 CTA"],
+        "min_fields": ["headline", "intro", "cta_text", "cta_url"]
+    },
+    "sale": {
+        "tone": "деловой, ориентированный на выгоду",
+        "limits": {"subjectMax": 55, "preheaderMin": 35, "preheaderMax": 70},
+        "must": ["оффер с дедлайном", "соцдоказательство", "1 CTA"],
+        "min_fields": ["headline", "intro", "offer", "cta_text", "cta_url"]
+    },
+    "pain_sale": {
+        "tone": "эмпатичный, конкретный, без перегиба",
+        "limits": {"subjectMax": 55, "preheaderMin": 35, "preheaderMax": 70},
+        "must": ["одна ключевая боль", "решение через ивент", "дедлайн", "1 CTA"],
+        "min_fields": ["headline", "intro", "offer", "cta_text", "cta_url"]
+    }
+}
 
 def get_db_connection():
     return psycopg2.connect(os.environ['DATABASE_URL'])
+
+def compute_inputs_hash(data: Dict) -> str:
+    content = json.dumps(data, sort_keys=True)
+    return hashlib.sha256(content.encode()).hexdigest()[:16]
+
+def preview_value(value: Any, max_len: int = 80) -> str:
+    str_val = str(value)
+    if len(str_val) > max_len:
+        return str_val[:max_len] + '...'
+    return str_val
 
 def get_nested_value(obj: Dict, path: str) -> Any:
     keys = path.split('.')
@@ -126,64 +277,56 @@ def apply_transform(transform_name: str, value: Any, event: Dict, content_plan: 
         return short_intro(event, content_plan, knowledge)
     return str(value)
 
+def source_router(source: str, event: Dict, content_plan: Dict, pain: Optional[Dict]) -> Any:
+    if source == 'static':
+        return None
+    elif source.startswith('Event.'):
+        path = source.replace('Event.', '')
+        return get_nested_value(event, path)
+    elif source.startswith('ContentPlan.'):
+        path = source.replace('ContentPlan.', '')
+        return get_nested_value(content_plan, path)
+    elif source.startswith('Pain.') and pain:
+        path = source.replace('Pain.', '')
+        return get_nested_value(pain, path)
+    return None
+
 def apply_mappings(
     mappings: List[Dict],
     event: Dict,
     content_plan: Dict,
+    pain: Optional[Dict],
     knowledge: List[Dict]
-) -> Dict[str, str]:
+) -> tuple[Dict[str, str], List[Dict]]:
     result = {}
+    mapping_log = []
     
     for mapping in mappings:
         var_name = mapping.get('variable')
         source = mapping.get('source')
+        transform = mapping.get('transform')
+        static_value = mapping.get('value')
         
         if source == 'static':
-            result[var_name] = mapping.get('value', '')
-        elif source.startswith('Event.'):
-            path = source.replace('Event.', '')
-            value = get_nested_value(event, path)
-            
-            if 'transform' in mapping:
-                value = apply_transform(mapping['transform'], value, event, content_plan, knowledge)
-            
-            result[var_name] = str(value) if value is not None else ''
-        elif source.startswith('ContentPlan.'):
-            path = source.replace('ContentPlan.', '')
-            value = get_nested_value(content_plan, path)
-            
-            if 'transform' in mapping:
-                value = apply_transform(mapping['transform'], value, event, content_plan, knowledge)
-            
-            result[var_name] = str(value) if value is not None else ''
+            value = static_value
+        else:
+            value = source_router(source, event, content_plan, pain)
+        
+        if transform:
+            value = apply_transform(transform, value, event, content_plan, knowledge)
+        
+        result[var_name] = value if value is not None else ''
+        
+        mapping_log.append({
+            'variable': var_name,
+            'source': source,
+            'transform': transform or '',
+            'result_preview': preview_value(value)
+        })
     
-    return result
+    return result, mapping_log
 
-RECIPES = {
-    "announce": {
-        "inputs": ["Event", "ContentPlan"],
-        "structure": ["headline", "intro", "cta_text", "cta_url", "speakers_block?"],
-        "tone": "информативный, лаконичный, без давления",
-        "limits": {"subjectMax": 55, "preheaderMin": 35, "preheaderMax": 70},
-        "must": ["чёткая выгода", "дата/место или формат", "1 CTA"]
-    },
-    "sale": {
-        "inputs": ["Event", "ContentPlan", "segments?"],
-        "structure": ["headline", "intro", "offer", "proof", "cta_text", "cta_url"],
-        "tone": "деловой, ориентированный на выгоду",
-        "limits": {"subjectMax": 55, "preheaderMin": 35, "preheaderMax": 70},
-        "must": ["оффер с дедлайном", "соцдоказательство", "1 CTA"]
-    },
-    "pain_sale": {
-        "inputs": ["Event", "Pain", "ContentPlan"],
-        "structure": ["pain", "agitate", "headline", "solution:intro", "proof", "offer", "deadline", "cta_text", "cta_url"],
-        "tone": "эмпатичный, конкретный, без перегиба",
-        "limits": {"subjectMax": 55, "preheaderMin": 35, "preheaderMax": 70},
-        "must": ["одна ключевая боль", "решение через ивент", "дедлайн", "1 CTA"]
-    }
-}
-
-def validate_content(content: Dict[str, Any], recipe: Dict) -> Dict[str, Any]:
+def validate_content(content: Dict[str, Any], recipe: Dict, required_vars: List[str]) -> Dict[str, Any]:
     errors = []
     limits = recipe.get('limits', {})
     
@@ -200,26 +343,57 @@ def validate_content(content: Dict[str, Any], recipe: Dict) -> Dict[str, Any]:
         if len(preheader) > limits.get('preheaderMax', 70):
             errors.append({"field": "preheader", "issue": "too_long", "max": limits.get('preheaderMax', 70), "current": len(preheader)})
     
-    required_fields = ['headline', 'intro', 'cta_text', 'cta_url']
-    for field in required_fields:
+    for field in recipe.get('min_fields', []):
         if not content.get(field):
             errors.append({"field": field, "issue": "missing"})
+    
+    for var in required_vars:
+        if not content.get(var):
+            errors.append({"field": var, "issue": "required_variable_not_filled"})
+    
+    cta_count = sum(1 for k in content.keys() if 'cta_url' in k and content[k])
+    if cta_count == 0:
+        errors.append({"field": "cta", "issue": "no_cta_found"})
     
     return {
         "status": "OK" if not errors else "ERROR",
         "errors": errors
     }
 
-def generate_missing_variables(
-    unfilled_vars: List[str],
+def validate_html(html: str) -> Dict[str, Any]:
+    warnings = []
+    
+    unfilled = re.findall(r'\{\{([^}]+)\}\}', html)
+    if unfilled:
+        warnings.append(f'Незаполненные переменные: {", ".join(unfilled)}')
+    
+    empty_hrefs = re.findall(r'<a[^>]+href="#"[^>]*>(?!.*unsubscribe)', html, re.IGNORECASE)
+    if empty_hrefs:
+        warnings.append(f'Найдено {len(empty_hrefs)} пустых href="#" (не unsubscribe)')
+    
+    if len(html) < 100:
+        warnings.append('HTML слишком короткий (менее 100 символов)')
+    
+    cta_patterns = [r'<a[^>]+href="http', r'<button']
+    has_valid_cta = any(re.search(pattern, html, re.IGNORECASE) for pattern in cta_patterns)
+    if not has_valid_cta:
+        warnings.append('Не найдено валидных CTA (ссылки или кнопки)')
+    
+    return {
+        "is_valid": len(warnings) == 0,
+        "warnings": warnings
+    }
+
+def generate_missing_fields(
+    missing_fields: List[str],
     knowledge: List[Dict],
     recipe: Dict,
     event: Dict,
     content_plan: Dict,
     pain: Optional[Dict] = None
-) -> Dict[str, str]:
-    if not unfilled_vars:
-        return {"subject": content_plan.get('topic', 'Новое письмо'), "preheader": "", "variables": {}}
+) -> Dict[str, Any]:
+    if not missing_fields:
+        return {"subject": content_plan.get('topic', 'Новое письмо'), "preheader": "", "fields": {}}
     
     proxy_url = os.environ.get('OPENAI_PROXY_URL', '').strip()
     
@@ -275,7 +449,7 @@ def generate_missing_variables(
 БАЗА ЗНАНИЙ:
 {knowledge_text}
 
-Заполни переменные: {', '.join(unfilled_vars)}
+Заполни ТОЛЬКО эти поля: {', '.join(missing_fields)}
 
 Правила:
 1. Используй ТОЛЬКО информацию из базы знаний
@@ -289,7 +463,7 @@ def generate_missing_variables(
 {{
   "subject": "до {limits.get('subjectMax', 55)} символов",
   "preheader": "{limits.get('preheaderMin', 35)}-{limits.get('preheaderMax', 70)} символов",
-  "variables": {{
+  "fields": {{
     "headline": "...",
     "intro": "...",
     "speakers_block": [{{"name":"...","role":"...","thesis":"..."}}]
@@ -300,7 +474,7 @@ def generate_missing_variables(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Создай контент для: {', '.join(unfilled_vars)}"}
+            {"role": "user", "content": f"Создай контент для: {', '.join(missing_fields)}"}
         ],
         temperature=0.7,
         response_format={"type": "json_object"}
@@ -319,40 +493,6 @@ def fill_template(template: str, variables_data: Dict[str, str]) -> str:
 
 def get_unfilled_variables(html: str) -> List[str]:
     return re.findall(r'\{\{([^}]+)\}\}', html)
-
-def validate_email(html: str, subject: str, preheader: str) -> Dict[str, Any]:
-    validation = {
-        'is_valid': True,
-        'warnings': [],
-        'errors': []
-    }
-    
-    if len(subject) < 10:
-        validation['warnings'].append('Тема письма слишком короткая (менее 10 символов)')
-    if len(subject) > 70:
-        validation['warnings'].append('Тема письма слишком длинная (более 70 символов)')
-    
-    if preheader:
-        if len(preheader) < 35:
-            validation['warnings'].append('Прехедер короткий (менее 35 символов)')
-        if len(preheader) > 90:
-            validation['warnings'].append('Прехедер длинный (более 90 символов)')
-    
-    if '{{' in html:
-        unfilled_vars = re.findall(r'\{\{([^}]+)\}\}', html)
-        validation['errors'].append(f'Незаполненные переменные: {", ".join(unfilled_vars)}')
-        validation['is_valid'] = False
-    
-    cta_patterns = [r'<a[^>]+href', r'<button']
-    has_cta = any(re.search(pattern, html, re.IGNORECASE) for pattern in cta_patterns)
-    if not has_cta:
-        validation['warnings'].append('В письме не найден CTA (кнопка или ссылка)')
-    
-    if len(html) < 100:
-        validation['errors'].append('Слишком короткий контент письма')
-        validation['is_valid'] = False
-    
-    return validation
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method: str = event.get('httpMethod', 'POST')
@@ -378,27 +518,31 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'isBase64Encoded': False
         }
     
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    
     try:
         body_data = json.loads(event.get('body', '{}'))
-        template_id = body_data.get('template_id')
-        content_type_code = body_data.get('content_type_code', 'announce')
-        event_id = body_data.get('event_id')
-        content_plan = body_data.get('content_plan', {})
-        mappings = body_data.get('mappings', [])
-        pain = body_data.get('pain')
         
-        if not all([template_id, event_id]):
+        try:
+            validate(instance=body_data, schema=INPUT_SCHEMA)
+        except JSONValidationError as e:
             return {
                 'statusCode': 400,
                 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'template_id, event_id are required'}),
+                'body': json.dumps({'error': f'Input validation failed: {e.message}'}),
                 'isBase64Encoded': False
             }
         
+        template_id = body_data.get('template_id')
+        event_id = body_data.get('event_id')
+        content_type_code = body_data.get('content_type_code', 'announce')
+        content_plan = body_data.get('content_plan', {})
+        pain = body_data.get('pain')
+        mappings = body_data.get('mappings', [])
+        
         recipe = RECIPES.get(content_type_code, RECIPES['announce'])
+        inputs_hash = compute_inputs_hash(body_data)
+        
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         
         cur.execute("SELECT * FROM email_templates WHERE id = %s", (template_id,))
         template = cur.fetchone()
@@ -428,16 +572,19 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         template_html = template['html_content']
         event_dict = dict(event_row)
         
-        filled_vars = apply_mappings(mappings, event_dict, content_plan, knowledge)
+        all_required_vars = get_unfilled_variables(template_html)
+        
+        filled_vars, mapping_log = apply_mappings(mappings, event_dict, content_plan, pain, knowledge)
         
         partial_html = fill_template(template_html, filled_vars)
-        
         unfilled_vars = get_unfilled_variables(partial_html)
         
+        missing_fields = [v for v in unfilled_vars if v not in filled_vars]
+        
         generated = {}
-        if unfilled_vars:
-            generated = generate_missing_variables(
-                unfilled_vars,
+        if missing_fields:
+            generated = generate_missing_fields(
+                missing_fields,
                 knowledge,
                 recipe,
                 event_dict,
@@ -445,14 +592,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 pain
             )
         
-        final_vars = {**filled_vars, **generated.get('variables', {})}
+        all_fields = {**filled_vars, **generated.get('fields', {})}
         
-        if 'speakers_block' in final_vars and isinstance(final_vars['speakers_block'], list):
-            final_vars['speakers_block'] = render_speakers_cards(final_vars['speakers_block'])
+        if 'speakers_block' in all_fields and isinstance(all_fields['speakers_block'], list):
+            all_fields['speakers_block'] = render_speakers_cards(all_fields['speakers_block'])
         
-        final_html = fill_template(template_html, final_vars)
+        final_html = fill_template(template_html, all_fields)
         
-        if not final_vars.get('speakers_block'):
+        if not all_fields.get('speakers_block'):
             final_html = re.sub(
                 r'<!-- Спикеры -->.*?<!-- CTA -->',
                 '<!-- CTA -->',
@@ -466,28 +613,35 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         all_content = {
             'subject': subject,
             'preheader': preheader,
-            'headline': final_vars.get('headline', ''),
-            'intro': final_vars.get('intro', ''),
-            'cta_text': final_vars.get('cta_text', ''),
-            'cta_url': final_vars.get('cta_url', '')
+            **all_fields
         }
         
-        content_validation = validate_content(all_content, recipe)
-        html_validation = validate_email(final_html, subject, preheader)
+        content_validation = validate_content(all_content, recipe, all_required_vars)
+        html_validation = validate_html(final_html)
+        
+        output = {
+            'subject': subject,
+            'preheader': preheader,
+            'fields': all_fields,
+            'html_content': final_html,
+            'content_validation': content_validation,
+            'html_validation': html_validation,
+            'mapping_log': mapping_log,
+            'recipe_used': content_type_code,
+            'recipe_version': RECIPE_VERSION,
+            'transform_version': TRANSFORM_VERSION,
+            'inputs_hash': inputs_hash
+        }
+        
+        try:
+            validate(instance=output, schema=OUTPUT_SCHEMA)
+        except JSONValidationError as e:
+            output['output_schema_warning'] = f'Output validation failed: {e.message}'
         
         return {
             'statusCode': 200,
             'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({
-                'subject': subject,
-                'preheader': preheader,
-                'html_content': final_html,
-                'variables_from_mappings': filled_vars,
-                'variables_from_gpt': generated.get('variables', {}),
-                'content_validation': content_validation,
-                'html_validation': html_validation,
-                'recipe_used': content_type_code
-            }),
+            'body': json.dumps(output),
             'isBase64Encoded': False
         }
         
@@ -499,5 +653,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'isBase64Encoded': False
         }
     finally:
-        cur.close()
-        conn.close()
+        if 'cur' in locals():
+            cur.close()
+        if 'conn' in locals():
+            conn.close()

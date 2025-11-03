@@ -1,0 +1,298 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Generate Email Strict JSON I/O Contract",
+  "version": "1.0.0",
+  "description": "Детерминированный контракт для генерации email с валидацией и маппингом",
+  
+  "inputSchema": {
+    "$id": "generate-email-input",
+    "type": "object",
+    "required": ["template_id", "event_id", "content_type_code", "mappings"],
+    "properties": {
+      "template_id": {
+        "type": "integer",
+        "description": "ID HTML-шаблона из таблицы email_templates"
+      },
+      "event_id": {
+        "type": "integer",
+        "description": "ID события из таблицы events"
+      },
+      "content_type_code": {
+        "type": "string",
+        "enum": ["announce", "sale", "pain_sale"],
+        "description": "Код типа контента (рецепта генерации)"
+      },
+      "content_plan": {
+        "type": "object",
+        "required": ["topic"],
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "Тема письма для генерации контента"
+          }
+        }
+      },
+      "pain": {
+        "type": "object",
+        "description": "Боли сегмента для pain_sale рецепта",
+        "properties": {
+          "segment": {
+            "type": "string",
+            "description": "Название сегмента (например: 'HR малого бизнеса')"
+          },
+          "pains": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Список болей сегмента"
+          },
+          "triggers": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Триггеры для action"
+          }
+        }
+      },
+      "mappings": {
+        "type": "array",
+        "description": "Маппинг переменных на источники данных",
+        "items": {
+          "type": "object",
+          "required": ["variable", "source"],
+          "properties": {
+            "variable": {
+              "type": "string",
+              "description": "Имя переменной в шаблоне (без {{}})"
+            },
+            "source": {
+              "type": "string",
+              "description": "Источник: static | Event.field | ContentPlan.field | Pain.field"
+            },
+            "transform": {
+              "type": "string",
+              "enum": ["render_speakers_cards", "render_agenda_ul", "short_intro"],
+              "description": "Функция трансформации значения"
+            },
+            "value": {
+              "type": ["string", "object", "array", "null"],
+              "description": "Значение для source=static"
+            }
+          }
+        }
+      },
+      "recipe_version": {
+        "type": "string",
+        "description": "Версия рецепта (опционально, дефолт: latest)"
+      },
+      "transform_version": {
+        "type": "string",
+        "description": "Версия трансформаций (опционально, дефолт: latest)"
+      }
+    },
+    "additionalProperties": false
+  },
+  
+  "outputSchema": {
+    "$id": "generate-email-output",
+    "type": "object",
+    "required": ["subject", "preheader", "html_content", "content_validation", "html_validation", "recipe_used"],
+    "properties": {
+      "subject": {
+        "type": "string",
+        "maxLength": 55,
+        "description": "Тема письма (≤55 символов)"
+      },
+      "preheader": {
+        "type": "string",
+        "minLength": 35,
+        "maxLength": 70,
+        "description": "Прехедер (35-70 символов)"
+      },
+      "fields": {
+        "type": "object",
+        "description": "Все заполненные поля письма",
+        "properties": {
+          "headline": {"type": "string"},
+          "intro": {"type": "string"},
+          "offer": {"type": "string"},
+          "speakers_block": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {"type": "string"},
+                "role": {"type": "string"},
+                "thesis": {"type": "string"}
+              }
+            }
+          },
+          "cta_text": {"type": "string"},
+          "cta_url": {"type": "string"},
+          "cta_text_2": {"type": "string"},
+          "cta_url_2": {"type": "string"}
+        },
+        "additionalProperties": true
+      },
+      "html_content": {
+        "type": "string",
+        "description": "Финальный HTML письма"
+      },
+      "content_validation": {
+        "type": "object",
+        "required": ["status", "errors"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["OK", "ERROR"]
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {"type": "string"},
+                "issue": {"type": "string"}
+              }
+            }
+          }
+        }
+      },
+      "html_validation": {
+        "type": "object",
+        "required": ["is_valid", "warnings"],
+        "properties": {
+          "is_valid": {"type": "boolean"},
+          "warnings": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      },
+      "mapping_log": {
+        "type": "array",
+        "description": "Лог применения маппингов с превью",
+        "items": {
+          "type": "object",
+          "properties": {
+            "variable": {"type": "string"},
+            "source": {"type": "string"},
+            "transform": {"type": "string"},
+            "result_preview": {
+              "type": "string",
+              "description": "Превью значения (до 80 символов)"
+            }
+          }
+        }
+      },
+      "recipe_used": {
+        "type": "string",
+        "description": "Код использованного рецепта"
+      },
+      "recipe_version": {
+        "type": "string",
+        "description": "Версия рецепта"
+      },
+      "transform_version": {
+        "type": "string",
+        "description": "Версия функций трансформации"
+      },
+      "inputs_hash": {
+        "type": "string",
+        "description": "SHA256 хеш входных данных для воспроизводимости"
+      }
+    },
+    "additionalProperties": false
+  },
+  
+  "recipes": {
+    "announce": {
+      "tone": "информативный, лаконичный, без давления",
+      "limits": {
+        "subjectMax": 55,
+        "preheaderMin": 35,
+        "preheaderMax": 70
+      },
+      "must": ["чёткая выгода", "дата/место или формат", "1 CTA"],
+      "min_fields": ["headline", "intro", "cta_text", "cta_url"]
+    },
+    "sale": {
+      "tone": "деловой, ориентированный на выгоду",
+      "limits": {
+        "subjectMax": 55,
+        "preheaderMin": 35,
+        "preheaderMax": 70
+      },
+      "must": ["оффер с дедлайном", "соцдоказательство", "1 CTA"],
+      "min_fields": ["headline", "intro", "offer", "cta_text", "cta_url"]
+    },
+    "pain_sale": {
+      "tone": "эмпатичный, конкретный, без перегиба",
+      "limits": {
+        "subjectMax": 55,
+        "preheaderMin": 35,
+        "preheaderMax": 70
+      },
+      "must": ["одна ключевая боль", "решение через ивент", "дедлайн", "1 CTA"],
+      "min_fields": ["headline", "intro", "offer", "cta_text", "cta_url"]
+    }
+  },
+  
+  "transforms": {
+    "render_speakers_cards": {
+      "input": "array[{name, role, thesis}]",
+      "output": "string (HTML)",
+      "description": "Рендерит JSON спикеров в HTML карточки"
+    },
+    "render_agenda_ul": {
+      "input": "array[{time, title}]",
+      "output": "string (HTML)",
+      "description": "Рендерит программу в HTML список"
+    },
+    "short_intro": {
+      "input": "Event + ContentPlan + Knowledge",
+      "output": "string",
+      "description": "GPT генерирует вступление на базе знаний"
+    }
+  },
+  
+  "examples": {
+    "minimal_announce": {
+      "template_id": 1,
+      "event_id": 1,
+      "content_type_code": "announce",
+      "content_plan": {
+        "topic": "Приглашение на конференцию"
+      },
+      "mappings": [
+        {"variable": "event_name", "source": "Event.name"},
+        {"variable": "cta_text", "source": "static", "value": "Зарегистрироваться"},
+        {"variable": "cta_url", "source": "Event.links.reg"}
+      ]
+    },
+    "full_pain_sale": {
+      "template_id": 1,
+      "event_id": 1,
+      "content_type_code": "pain_sale",
+      "content_plan": {
+        "topic": "Как удержать персонал без высоких зарплат"
+      },
+      "pain": {
+        "segment": "HR малого бизнеса",
+        "pains": ["Текучка кадров 40%+", "Нет бюджета на зарплаты"],
+        "triggers": ["Увольнение ключевого сотрудника"]
+      },
+      "mappings": [
+        {"variable": "event_name", "source": "Event.name"},
+        {"variable": "speakers_block", "source": "Event.speakers", "transform": "render_speakers_cards"},
+        {"variable": "cta_text", "source": "static", "value": "Узнать решение"},
+        {"variable": "cta_url", "source": "Event.links.reg"}
+      ]
+    }
+  },
+  
+  "determinism": {
+    "inputs_hash": "SHA256 хеш всех входных данных",
+    "recipe_version": "Фиксированная версия рецепта (1.0.0)",
+    "transform_version": "Фиксированная версия трансформаций (1.0.0)",
+    "reproducibility": "Одинаковые входные данные → одинаковые выходные данные (кроме GPT-генерируемых полей с temperature=0.7)"
+  }
+}
