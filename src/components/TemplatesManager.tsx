@@ -341,21 +341,32 @@ export default function TemplatesManager() {
                           })
                         });
                         
-                        if (renderResponse.ok) {
-                          const data = await renderResponse.json();
-                          setGeneratedEmail({
-                            ...data,
-                            subject: ctx.meta.subjectA,
-                            validation: { valid: true, errors: [] },
-                            mapping_log: [
-                              { variable: 'event.name', value: ctx.event.name, source: 'Knowledge Base' },
-                              { variable: 'speakers', value: `${ctx.speakers.length} спикеров`, source: 'Knowledge Base' },
-                              { variable: 'talks', value: `${ctx.talks.length} докладов`, source: 'Knowledge Base' },
-                              { variable: 'CTA URL', value: ctx.meta.cta_top_url, source: 'Auto UTM' }
-                            ]
-                          });
-                          setShowGenerator(true);
+                        if (!renderResponse.ok) {
+                          const errorText = await renderResponse.text();
+                          throw new Error(`Render failed: ${errorText}`);
                         }
+                        
+                        const data = await renderResponse.json();
+                        console.log('v2 render success:', data);
+                        
+                        setGeneratedEmail({
+                          ...data,
+                          subject: ctx.meta.subjectA,
+                          preheader: ctx.meta.preheader,
+                          content_validation: { status: 'OK', errors: [] },
+                          html_validation: { valid: true, errors: [] },
+                          mapping_log: [
+                            { variable: 'event.name', source: 'Knowledge Base', transform: 'direct', result_preview: ctx.event.name },
+                            { variable: 'speakers', source: 'Knowledge Base', transform: 'array', result_preview: `${ctx.speakers.length} спикеров` },
+                            { variable: 'talks', source: 'Knowledge Base', transform: 'array', result_preview: `${ctx.talks.length} докладов` },
+                            { variable: 'CTA URL', source: 'Auto UTM', transform: 'utm_append', result_preview: ctx.meta.cta_top_url }
+                          ],
+                          recipe_used: 'knowledge_base_v2',
+                          recipe_version: '2.0',
+                          transform_version: '1.0',
+                          inputs_hash: 'kb_demo'
+                        });
+                        setShowGenerator(true);
                       } catch (err) {
                         console.error('v2 render error:', err);
                         alert('Ошибка рендера v2: ' + err);
