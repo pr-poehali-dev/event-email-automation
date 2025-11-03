@@ -340,7 +340,6 @@ export default function CampaignsManager() {
                 <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem' }}>
                   RAG найдёт релевантный контент из базы знаний и подставит в письмо
                 </p>
-                />
               </div>
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
