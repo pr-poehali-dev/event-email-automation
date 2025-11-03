@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, BookOpen, FileText, Send, BarChart3, Layers } from 'lucide-react';
+import { Calendar, BookOpen, FileText, Send, BarChart3 } from 'lucide-react';
 import EventsManager from '../components/EventsManager';
 import KnowledgeManager from '../components/KnowledgeManager';
 import TemplatesManager from '../components/TemplatesManager';
@@ -11,35 +11,75 @@ export default function Dashboard() {
   const [currentView, setCurrentView] = useState<View>('events');
 
   const menuItems = [
-    { id: 'events' as View, label: 'События', icon: Calendar },
-    { id: 'knowledge' as View, label: 'База знаний', icon: BookOpen },
-    { id: 'templates' as View, label: 'Шаблоны', icon: FileText },
-    { id: 'campaigns' as View, label: 'Кампании', icon: Send },
-    { id: 'analytics' as View, label: 'Аналитика', icon: BarChart3 },
+    { id: 'events' as View, label: 'События', icon: Calendar, color: '#8B5CF6' },
+    { id: 'knowledge' as View, label: 'База знаний', icon: BookOpen, color: '#06B6D4' },
+    { id: 'templates' as View, label: 'Шаблоны', icon: FileText, color: '#F59E0B' },
+    { id: 'campaigns' as View, label: 'Кампании', icon: Send, color: '#10B981' },
+    { id: 'analytics' as View, label: 'Аналитика', icon: BarChart3, color: '#EF4444' },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
-      <div className="flex">
-        <aside className="w-72 min-h-screen bg-white/80 backdrop-blur-xl border-r border-slate-200/60 shadow-xl">
-          <div className="p-6 border-b border-slate-200/60">
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-2xl blur opacity-75"></div>
-                <div className="relative w-12 h-12 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Send className="w-6 h-6 text-white" />
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+      <div style={{ display: 'flex' }}>
+        <aside style={{ 
+          width: '280px', 
+          minHeight: '100vh', 
+          background: 'rgba(255, 255, 255, 0.98)',
+          backdropFilter: 'blur(20px)',
+          borderRight: '1px solid rgba(139, 92, 246, 0.1)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        }}>
+          <div style={{ 
+            padding: '2rem', 
+            borderBottom: '1px solid rgba(139, 92, 246, 0.1)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ 
+                position: 'relative',
+                width: '56px',
+                height: '56px'
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  borderRadius: '16px',
+                  filter: 'blur(8px)',
+                  opacity: 0.6
+                }}></div>
+                <div style={{
+                  position: 'relative',
+                  width: '56px',
+                  height: '56px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  borderRadius: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 10px 25px -5px rgba(102, 126, 234, 0.4)'
+                }}>
+                  <Send style={{ width: '28px', height: '28px', color: 'white' }} />
                 </div>
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                <h1 style={{ 
+                  fontSize: '1.75rem', 
+                  fontWeight: 'bold',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}>
                   EmailGen AI
                 </h1>
-                <p className="text-xs text-slate-500 font-medium">Платформа для email-рассылок</p>
+                <p style={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 500 }}>
+                  Платформа для email-рассылок
+                </p>
               </div>
             </div>
           </div>
 
-          <nav className="p-4 space-y-2">
+          <nav style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentView === item.id;
@@ -48,31 +88,64 @@ export default function Dashboard() {
                 <button
                   key={item.id}
                   onClick={() => setCurrentView(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 ${
-                    isActive
-                      ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/30 scale-[1.02]'
-                      : 'text-slate-700 hover:bg-slate-100/70 hover:scale-[1.01]'
-                  }`}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '1rem 1.25rem',
+                    borderRadius: '12px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    background: isActive 
+                      ? `linear-gradient(135deg, ${item.color} 0%, ${item.color}dd 100%)`
+                      : 'transparent',
+                    color: isActive ? 'white' : '#475569',
+                    fontWeight: 600,
+                    fontSize: '0.9375rem',
+                    boxShadow: isActive ? `0 10px 25px -5px ${item.color}40` : 'none',
+                    transform: isActive ? 'translateY(-2px)' : 'translateY(0)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = '#f8fafc';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = 'transparent';
+                    }
+                  }}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'drop-shadow-sm' : ''}`} />
-                  <span className="font-semibold text-sm">{item.label}</span>
+                  <Icon style={{ width: '20px', height: '20px' }} />
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
         </aside>
 
-        <main className="flex-1 p-10 max-w-7xl">
-          {currentView === 'events' && <EventsManager />}
-          {currentView === 'knowledge' && <KnowledgeManager />}
-          {currentView === 'templates' && <TemplatesManager />}
-          {currentView === 'campaigns' && <CampaignsManager />}
-          {currentView === 'analytics' && (
-            <div className="text-center py-20 text-gray-500">
-              <BarChart3 className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p>Аналитика появится после запуска первых кампаний</p>
-            </div>
-          )}
+        <main style={{ flex: 1, padding: '3rem', maxWidth: '1400px' }}>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '24px',
+            padding: '3rem',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            minHeight: '85vh'
+          }}>
+            {currentView === 'events' && <EventsManager />}
+            {currentView === 'knowledge' && <KnowledgeManager />}
+            {currentView === 'templates' && <TemplatesManager />}
+            {currentView === 'campaigns' && <CampaignsManager />}
+            {currentView === 'analytics' && (
+              <div style={{ textAlign: 'center', paddingTop: '5rem', color: '#64748b' }}>
+                <BarChart3 style={{ width: '64px', height: '64px', margin: '0 auto 1rem', opacity: 0.5 }} />
+                <p style={{ fontSize: '1.125rem' }}>Аналитика появится после запуска первых кампаний</p>
+              </div>
+            )}
+          </div>
         </main>
       </div>
     </div>

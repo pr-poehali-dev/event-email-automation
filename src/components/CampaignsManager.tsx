@@ -1,59 +1,141 @@
-import { useState } from 'react';
-import { Plus, Send, Zap } from 'lucide-react';
+import { Plus, Send, Zap, Mail, DollarSign, Clock } from 'lucide-react';
 
 export default function CampaignsManager() {
+  const types = [
+    { emoji: Mail, title: 'Анонс', desc: 'Информирование о событии', color: '#8B5CF6' },
+    { emoji: DollarSign, title: 'Продажа', desc: 'Прямая продажа билетов', color: '#10B981' },
+    { emoji: Clock, title: 'Дедлайн', desc: 'Срочность предложения', color: '#EF4444' },
+  ];
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-10">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2.5rem' }}>
         <div>
-          <h2 className="text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">Кампании</h2>
-          <p className="text-slate-600 mt-2 text-lg">Контент-планы и генерация писем</p>
+          <h2 style={{ 
+            fontSize: '2.5rem', 
+            fontWeight: 'bold',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            marginBottom: '0.5rem'
+          }}>
+            Кампании
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '1.125rem' }}>
+            Контент-планы и генерация писем
+          </p>
         </div>
         <button
-          className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl hover:shadow-xl hover:shadow-violet-500/30 transition-all duration-200 font-semibold shadow-lg hover:scale-105"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '1rem 1.75rem',
+            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '1rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.4)',
+            transition: 'all 0.2s'
+          }}
         >
-          <Plus className="w-5 h-5" />
+          <Plus style={{ width: '20px', height: '20px' }} />
           Новая кампания
         </button>
       </div>
 
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/60 p-16 text-center">
-        <Send className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Нет кампаний</h3>
-        <p className="text-gray-600 mb-6">
+      <div style={{ 
+        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.05) 100%)',
+        borderRadius: '20px',
+        padding: '4rem',
+        textAlign: 'center',
+        border: '2px dashed rgba(16, 185, 129, 0.2)'
+      }}>
+        <div style={{
+          width: '80px',
+          height: '80px',
+          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+          borderRadius: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 1.5rem',
+          boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.4)'
+        }}>
+          <Send style={{ width: '40px', height: '40px', color: 'white' }} />
+        </div>
+        <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1e293b', marginBottom: '0.75rem' }}>
+          Нет кампаний
+        </h3>
+        <p style={{ color: '#64748b', fontSize: '1.125rem', marginBottom: '2.5rem' }}>
           Создайте кампанию для автоматической генерации писем
         </p>
         
-        <div className="grid grid-cols-3 gap-6 max-w-3xl mx-auto mt-10">
-          <div className="bg-gradient-to-br from-violet-50 to-purple-100 rounded-2xl p-8 border border-violet-200 hover:shadow-xl hover:scale-105 transition-all cursor-pointer">
-            <div className="w-16 h-16 bg-gradient-to-br from-violet-600 to-purple-600 rounded-2xl flex items-center justify-center mb-4 mx-auto shadow-lg">
-              <span className="text-3xl">📧</span>
-            </div>
-            <p className="font-bold text-violet-900 text-lg">Анонс</p>
-            <p className="text-sm text-violet-700 mt-2">Информирование о событии</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-emerald-50 to-green-100 rounded-2xl p-8 border border-emerald-200 hover:shadow-xl hover:scale-105 transition-all cursor-pointer">
-            <div className="w-16 h-16 bg-gradient-to-br from-emerald-600 to-green-600 rounded-2xl flex items-center justify-center mb-4 mx-auto shadow-lg">
-              <span className="text-3xl">💰</span>
-            </div>
-            <p className="font-bold text-emerald-900 text-lg">Продажа</p>
-            <p className="text-sm text-emerald-700 mt-2">Прямая продажа билетов</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-rose-50 to-red-100 rounded-2xl p-8 border border-rose-200 hover:shadow-xl hover:scale-105 transition-all cursor-pointer">
-            <div className="w-16 h-16 bg-gradient-to-br from-rose-600 to-red-600 rounded-2xl flex items-center justify-center mb-4 mx-auto shadow-lg">
-              <span className="text-3xl">⏰</span>
-            </div>
-            <p className="font-bold text-rose-900 text-lg">Дедлайн</p>
-            <p className="text-sm text-rose-700 mt-2">Срочность предложения</p>
-          </div>
+        <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', maxWidth: '1000px', margin: '0 auto 3rem' }}>
+          {types.map((type, idx) => {
+            const Icon = type.emoji;
+            return (
+              <div
+                key={idx}
+                style={{
+                  flex: 1,
+                  background: 'white',
+                  borderRadius: '20px',
+                  padding: '2.5rem',
+                  border: `2px solid ${type.color}20`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.08)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = `0 20px 40px ${type.color}30`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.08)';
+                }}
+              >
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  background: `linear-gradient(135deg, ${type.color} 0%, ${type.color}dd 100%)`,
+                  borderRadius: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 1.5rem',
+                  boxShadow: `0 10px 25px ${type.color}40`
+                }}>
+                  <Icon style={{ width: '32px', height: '32px', color: 'white' }} />
+                </div>
+                <p style={{ fontWeight: 'bold', fontSize: '1.25rem', color: '#1e293b', marginBottom: '0.5rem' }}>
+                  {type.title}
+                </p>
+                <p style={{ color: '#64748b', fontSize: '1rem' }}>
+                  {type.desc}
+                </p>
+              </div>
+            );
+          })}
         </div>
 
-        <div className="mt-10 inline-flex items-center gap-3 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl px-8 py-4 shadow-lg">
-          <Zap className="w-6 h-6 text-amber-600" />
-          <p className="text-sm text-amber-900">
-            <strong className="font-bold">ИИ генерирует контент</strong> по рецептам каждого типа письма
+        <div style={{
+          background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+          borderRadius: '16px',
+          padding: '1.5rem 2rem',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '1rem',
+          boxShadow: '0 10px 25px rgba(245, 158, 11, 0.2)',
+          border: '2px solid rgba(245, 158, 11, 0.2)'
+        }}>
+          <Zap style={{ width: '28px', height: '28px', color: '#D97706' }} />
+          <p style={{ color: '#92400E', fontSize: '1rem' }}>
+            <strong style={{ fontWeight: 'bold' }}>ИИ генерирует контент</strong> по рецептам каждого типа письма
           </p>
         </div>
       </div>

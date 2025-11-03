@@ -1,71 +1,106 @@
-import { useState } from 'react';
-import { Plus, FileText, Upload, Sparkles } from 'lucide-react';
+import { Plus, FileText, Upload, Sparkles, CheckCircle } from 'lucide-react';
 
 export default function TemplatesManager() {
-  const [showUpload, setShowUpload] = useState(false);
+  const features = [
+    'Preheader и заголовки',
+    'CTA кнопки и ссылки',
+    'Блоки спикеров и программы',
+    'Списки преимуществ',
+    'Дедлайны и сроки'
+  ];
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-10">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2.5rem' }}>
         <div>
-          <h2 className="text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">Библиотека шаблонов</h2>
-          <p className="text-slate-600 mt-2 text-lg">HTML-шаблоны писем с автодетекцией блоков</p>
+          <h2 style={{ 
+            fontSize: '2.5rem', 
+            fontWeight: 'bold',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            marginBottom: '0.5rem'
+          }}>
+            Библиотека шаблонов
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '1.125rem' }}>
+            HTML-шаблоны писем с автодетекцией блоков
+          </p>
         </div>
         <button
-          onClick={() => setShowUpload(!showUpload)}
-          className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl hover:shadow-xl hover:shadow-violet-500/30 transition-all duration-200 font-semibold shadow-lg hover:scale-105"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '1rem 1.75rem',
+            background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '1rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 10px 25px -5px rgba(245, 158, 11, 0.4)',
+            transition: 'all 0.2s'
+          }}
         >
-          <Upload className="w-5 h-5" />
+          <Upload style={{ width: '20px', height: '20px' }} />
           Загрузить шаблон
         </button>
       </div>
 
-      {showUpload && (
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/60 p-8 mb-8 animate-fade-in">
-          <h3 className="text-xl font-semibold mb-6 flex items-center gap-2 text-slate-900">
-            <Sparkles className="w-6 h-6 text-violet-600" />
-            Умная загрузка HTML
-          </h3>
-          <div className="border-2 border-dashed border-slate-300 rounded-2xl p-16 text-center hover:border-violet-500 hover:bg-violet-50/30 transition-all cursor-pointer group">
-            <Upload className="w-16 h-16 mx-auto mb-6 text-slate-400 group-hover:text-violet-500 transition-colors" />
-            <p className="text-gray-700 font-medium mb-2">
-              Перетащите HTML файл или нажмите для выбора
-            </p>
-            <p className="text-sm text-gray-500 mb-4">
-              ИИ автоматически определит блоки: заголовки, CTA, спикеров, программу
-            </p>
-            <input
-              type="file"
-              accept=".html,.htm"
-              className="hidden"
-              id="html-upload"
-            />
-            <label
-              htmlFor="html-upload"
-              className="inline-block px-8 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl cursor-pointer hover:shadow-lg hover:shadow-violet-500/30 transition-all font-semibold hover:scale-105"
-            >
-              Выбрать файл
-            </label>
-          </div>
+      <div style={{ 
+        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.05) 100%)',
+        borderRadius: '20px',
+        padding: '4rem',
+        textAlign: 'center',
+        border: '2px dashed rgba(245, 158, 11, 0.2)'
+      }}>
+        <div style={{
+          width: '80px',
+          height: '80px',
+          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+          borderRadius: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 1.5rem',
+          boxShadow: '0 10px 25px -5px rgba(245, 158, 11, 0.4)'
+        }}>
+          <FileText style={{ width: '40px', height: '40px', color: 'white' }} />
         </div>
-      )}
-
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/60 p-16 text-center">
-        <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Нет шаблонов</h3>
-        <p className="text-gray-600 mb-6">
+        <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1e293b', marginBottom: '0.75rem' }}>
+          Нет шаблонов
+        </h3>
+        <p style={{ color: '#64748b', fontSize: '1.125rem', marginBottom: '2.5rem' }}>
           Загрузите HTML-шаблон письма.<br />
           ИИ автоматически найдёт все блоки и создаст переменные.
         </p>
-        <div className="inline-block bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-6 text-left max-w-md border border-violet-100 shadow-lg">
-          <p className="text-sm font-medium text-purple-900 mb-2">🎯 Что ИИ находит автоматически:</p>
-          <ul className="text-sm text-gray-700 space-y-1">
-            <li>✓ Preheader и заголовки</li>
-            <li>✓ CTA кнопки и ссылки</li>
-            <li>✓ Блоки спикеров и программы</li>
-            <li>✓ Списки преимуществ</li>
-            <li>✓ Дедлайны и сроки</li>
-          </ul>
+        
+        <div style={{
+          background: 'white',
+          borderRadius: '16px',
+          padding: '2rem',
+          maxWidth: '500px',
+          margin: '0 auto',
+          textAlign: 'left',
+          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+          border: '2px solid rgba(245, 158, 11, 0.2)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <Sparkles style={{ width: '24px', height: '24px', color: '#F59E0B' }} />
+            <p style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#1e293b' }}>
+              Что ИИ находит автоматически:
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {features.map((feature, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <CheckCircle style={{ width: '20px', height: '20px', color: '#10B981' }} />
+                <span style={{ color: '#475569', fontSize: '1rem' }}>{feature}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
