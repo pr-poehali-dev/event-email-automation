@@ -830,25 +830,27 @@ export default function TemplatesManager() {
               </form>
             ) : (
               <div>
-                <div style={{
-                  padding: '1.5rem',
-                  background: generatedEmail.content_validation.status === 'OK' ? '#f0fdf4' : '#fef2f2',
-                  borderRadius: '12px',
-                  marginBottom: '1.5rem',
-                  border: `2px solid ${generatedEmail.content_validation.status === 'OK' ? '#86efac' : '#fca5a5'}`
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                    <CheckCircle style={{ width: '20px', height: '20px', color: generatedEmail.content_validation.status === 'OK' ? '#22c55e' : '#ef4444' }} />
-                    <strong style={{ color: '#1e293b' }}>Валидация: {generatedEmail.content_validation.status}</strong>
+                {generatedEmail.content_validation && (
+                  <div style={{
+                    padding: '1.5rem',
+                    background: generatedEmail.content_validation.status === 'OK' ? '#f0fdf4' : '#fef2f2',
+                    borderRadius: '12px',
+                    marginBottom: '1.5rem',
+                    border: `2px solid ${generatedEmail.content_validation.status === 'OK' ? '#86efac' : '#fca5a5'}`
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <CheckCircle style={{ width: '20px', height: '20px', color: generatedEmail.content_validation.status === 'OK' ? '#22c55e' : '#ef4444' }} />
+                      <strong style={{ color: '#1e293b' }}>Валидация: {generatedEmail.content_validation.status}</strong>
+                    </div>
+                    {generatedEmail.content_validation.errors?.length > 0 && (
+                      <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#64748b' }}>
+                        {generatedEmail.content_validation.errors.map((err: any, i: number) => (
+                          <li key={i}>{err.field}: {err.issue}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
-                  {generatedEmail.content_validation.errors?.length > 0 && (
-                    <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#64748b' }}>
-                      {generatedEmail.content_validation.errors.map((err: any, i: number) => (
-                        <li key={i}>{err.field}: {err.issue}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                )}
 
                 <div style={{ marginBottom: '1rem' }}>
                   <strong style={{ color: '#1e293b' }}>Тема:</strong>
