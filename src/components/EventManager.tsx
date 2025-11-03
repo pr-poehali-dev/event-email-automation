@@ -536,6 +536,22 @@ function KnowledgeBaseModal({ event, onClose }: { event: Event; onClose: () => v
             <div style={{ display: 'grid', gap: '1.5rem' }}>
               <div>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#1e293b' }}>
+                  Ссылка на боли аудитории
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://docs.google.com/document/..."
+                  style={{
+                    width: '100%',
+                    padding: '0.875rem',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    fontSize: '1rem'
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#1e293b' }}>
                   Проблема (Pain Point)
                 </label>
                 <textarea
