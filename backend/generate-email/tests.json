@@ -1,0 +1,20 @@
+{
+  "tests": [
+    {
+      "name": "Generate email with valid data",
+      "method": "POST",
+      "body": {
+        "template_id": 1,
+        "content_type_id": 1,
+        "event_id": 1
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "subject": "string",
+        "html_content": "string",
+        "validation": "object"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "tests": [
+    {
+      "name": "Analyze simple email template",
+      "method": "POST",
+      "body": {
+        "html_content": "<html><body><h1>Вебинар по продажам</h1><p>Спикер: Иван Петров</p><a href='#'>Зарегистрироваться</a></body></html>"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "template_html": "string",
+        "blocks": "array",
+        "variables": "array",
+        "blocks_count": "number"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
