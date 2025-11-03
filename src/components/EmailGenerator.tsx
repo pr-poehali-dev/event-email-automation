@@ -372,11 +372,33 @@ export default function EmailGenerator() {
               <button
                 onClick={async () => {
                   const campaignName = `${subject} - ${new Date().toLocaleDateString()}`;
-                  const confirmed = confirm(`Создать черновик письма в UniSender?\n\nНазвание: ${campaignName}\n\nПосле создания вы сможете отредактировать и отправить письмо в UniSender.`);
+                  const confirmed = confirm(`Создать сообщение в UniSender?\n\nНазвание: ${campaignName}\n\nПосле создания вы сможете создать кампанию в UniSender dashboard.`);
                   
                   if (!confirmed) return;
                   
-                  alert('⚠️ Функция экспорта в UniSender находится в разработке.\n\nВы можете скопировать HTML и вставить его в UniSender вручную.');
+                  try {
+                    const response = await fetch('https://functions.poehali.dev/45b8b241-46bb-4d73-8b50-f3624cadbe4b', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        campaign_name: campaignName,
+                        subject: subject,
+                        html: generatedHtml,
+                        sender_name: 'EmailGen AI',
+                        sender_email: 'noreply@example.com'
+                      })
+                    });
+                    
+                    if (response.ok) {
+                      const data = await response.json();
+                      alert(`✅ Сообщение создано в UniSender!\n\nMessage ID: ${data.message_id}\n\nТеперь войдите в UniSender и создайте кампанию на основе этого сообщения.`);
+                    } else {
+                      const error = await response.json();
+                      alert(`❌ Ошибка экспорта:\n\n${error.error}\n\nДетали: ${error.details}\n\n💡 Совет: Убедитесь, что email отправителя верифицирован в UniSender.`);
+                    }
+                  } catch (err) {
+                    alert('Ошибка подключения: ' + err);
+                  }
                 }}
                 style={{
                   flex: 1,

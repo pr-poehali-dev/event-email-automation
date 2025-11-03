@@ -1,0 +1,21 @@
+{
+  "tests": [
+    {
+      "name": "Export campaign to UniSender",
+      "method": "POST",
+      "body": {
+        "campaign_name": "Test Campaign",
+        "subject": "Тестовое письмо",
+        "html": "<html><body><h1>Тест</h1><p>Привет!</p></body></html>",
+        "sender_name": "Test Sender",
+        "sender_email": "test@example.com"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "status": "string",
+        "campaign_id": "number"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
