@@ -10,6 +10,7 @@ import psycopg2
 import psycopg2.extras
 from openai import OpenAI
 import numpy as np
+import httpx
 
 def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
     a = np.array(vec1)
@@ -52,11 +53,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'body': json.dumps({'error': 'event_id and prompt required'})
         }
     
-    # Initialize OpenAI client
+    # Initialize OpenAI client with proxy support
     api_key = os.environ.get('OPENAI_API_KEY')
     proxy_url = os.environ.get('OPENAI_PROXY_URL', '').strip()
+    
     if proxy_url:
-        client = OpenAI(api_key=api_key, base_url=proxy_url)
+        http_client = httpx.Client(proxies=proxy_url)
+        client = OpenAI(api_key=api_key, http_client=http_client)
     else:
         client = OpenAI(api_key=api_key)
     
