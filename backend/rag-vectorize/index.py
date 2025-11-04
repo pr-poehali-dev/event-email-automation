@@ -65,31 +65,41 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     else:
         client = openai.OpenAI(api_key=os.environ['OPENAI_API_KEY'])
     
+    # Helper to escape strings for SQL
+    def escape_sql(value):
+        if value is None:
+            return 'NULL'
+        return "'" + str(value).replace("'", "''") + "'"
+    
     try:
+        # Use autocommit for Simple Query Protocol
         conn = psycopg2.connect(dsn)
+        conn.set_session(autocommit=True)
         cur = conn.cursor()
         
         chunks_created = 0
+        safe_event_id = escape_sql(event_id)
         
         if force_refresh:
-            cur.execute("DELETE FROM t_p17985067_event_email_automati.kb_embeddings WHERE event_id = %s", (event_id,))
+            cur.execute(f"DELETE FROM t_p17985067_event_email_automati.kb_embeddings WHERE event_id = {safe_event_id}")
         
         # Векторизация спикеров
-        cur.execute("""
+        cur.execute(f"""
             SELECT speaker_id, name, title, company, topic, bio 
             FROM t_p17985067_event_email_automati.kb_speakers 
-            WHERE event_id = %s
-        """, (event_id,))
+            WHERE event_id = {safe_event_id}
+        """)
         speakers = cur.fetchall()
         
         for speaker in speakers:
             speaker_id, name, title, company, topic, bio = speaker
             text = f"Спикер: {name}. {title or ''} в {company or ''}. Тема доклада: {topic or ''}. Био: {bio or ''}"
             
-            cur.execute("""
+            safe_speaker_id = escape_sql(speaker_id)
+            cur.execute(f"""
                 SELECT COUNT(*) FROM t_p17985067_event_email_automati.kb_embeddings 
-                WHERE event_id = %s AND content_type = 'speaker' AND content_id = %s
-            """, (event_id, speaker_id))
+                WHERE event_id = {safe_event_id} AND content_type = 'speaker' AND content_id = {safe_speaker_id}
+            """)
             
             if cur.fetchone()[0] == 0:
                 response = client.embeddings.create(
@@ -99,36 +109,34 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 embedding_values = response.data[0].embedding
                 embedding_str = json.dumps(embedding_values)
                 
-                cur.execute("""
+                safe_text = escape_sql(text)
+                safe_metadata = escape_sql(json.dumps({'name': name, 'company': company}))
+                safe_embedding = escape_sql(embedding_str)
+                
+                cur.execute(f"""
                     INSERT INTO t_p17985067_event_email_automati.kb_embeddings 
                     (event_id, content_type, content_id, chunk_text, chunk_metadata, embedding_vector)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (
-                    event_id, 
-                    'speaker', 
-                    speaker_id, 
-                    text,
-                    json.dumps({'name': name, 'company': company}),
-                    embedding_str
-                ))
+                    VALUES ({safe_event_id}, 'speaker', {safe_speaker_id}, {safe_text}, {safe_metadata}, {safe_embedding})
+                """)
                 chunks_created += 1
         
         # Векторизация докладов
-        cur.execute("""
+        cur.execute(f"""
             SELECT talk_id, title, description, speaker_id, section_id
             FROM t_p17985067_event_email_automati.kb_talks 
-            WHERE event_id = %s
-        """, (event_id,))
+            WHERE event_id = {safe_event_id}
+        """)
         talks = cur.fetchall()
         
         for talk in talks:
             talk_id, title, description, speaker_id, section_id = talk
             text = f"Доклад: {title or ''}. Описание: {description or ''}"
             
-            cur.execute("""
+            safe_talk_id = escape_sql(talk_id)
+            cur.execute(f"""
                 SELECT COUNT(*) FROM t_p17985067_event_email_automati.kb_embeddings 
-                WHERE event_id = %s AND content_type = 'talk' AND content_id = %s
-            """, (event_id, talk_id))
+                WHERE event_id = {safe_event_id} AND content_type = 'talk' AND content_id = {safe_talk_id}
+            """)
             
             if cur.fetchone()[0] == 0:
                 response = client.embeddings.create(
@@ -138,33 +146,31 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 embedding_values = response.data[0].embedding
                 embedding_str = json.dumps(embedding_values)
                 
-                cur.execute("""
+                safe_text = escape_sql(text)
+                safe_metadata = escape_sql(json.dumps({'title': title, 'speaker_id': speaker_id}))
+                safe_embedding = escape_sql(embedding_str)
+                
+                cur.execute(f"""
                     INSERT INTO t_p17985067_event_email_automati.kb_embeddings 
                     (event_id, content_type, content_id, chunk_text, chunk_metadata, embedding_vector)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (
-                    event_id, 
-                    'talk', 
-                    talk_id, 
-                    text,
-                    json.dumps({'title': title, 'speaker_id': speaker_id}),
-                    embedding_str
-                ))
+                    VALUES ({safe_event_id}, 'talk', {safe_talk_id}, {safe_text}, {safe_metadata}, {safe_embedding})
+                """)
                 chunks_created += 1
         
         # Векторизация болей аудитории
-        cur.execute("""
+        cur.execute(f"""
             SELECT pain_point FROM t_p17985067_event_email_automati.kb_content 
-            WHERE event_id = %s AND pain_point IS NOT NULL
-        """, (event_id,))
+            WHERE event_id = {safe_event_id} AND pain_point IS NOT NULL
+        """)
         pain_points = cur.fetchall()
         
         for idx, (pain_point,) in enumerate(pain_points):
             if pain_point and pain_point.strip():
-                cur.execute("""
+                pain_id = escape_sql(f'pain_{idx}')
+                cur.execute(f"""
                     SELECT COUNT(*) FROM t_p17985067_event_email_automati.kb_embeddings 
-                    WHERE event_id = %s AND content_type = 'pain_point' AND content_id = %s
-                """, (event_id, f'pain_{idx}'))
+                    WHERE event_id = {safe_event_id} AND content_type = 'pain_point' AND content_id = {pain_id}
+                """)
                 
                 if cur.fetchone()[0] == 0:
                     response = client.embeddings.create(
@@ -174,33 +180,30 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     embedding_values = response.data[0].embedding
                     embedding_str = json.dumps(embedding_values)
                     
-                    cur.execute("""
+                    safe_text = escape_sql(pain_point)
+                    safe_embedding = escape_sql(embedding_str)
+                    
+                    cur.execute(f"""
                         INSERT INTO t_p17985067_event_email_automati.kb_embeddings 
                         (event_id, content_type, content_id, chunk_text, chunk_metadata, embedding_vector)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (
-                        event_id, 
-                        'pain_point', 
-                        f'pain_{idx}', 
-                        pain_point,
-                        json.dumps({}),
-                        embedding_str
-                    ))
+                        VALUES ({safe_event_id}, 'pain_point', {pain_id}, {safe_text}, '{{}}', {safe_embedding})
+                    """)
                     chunks_created += 1
         
         # Векторизация выгод и ценности
-        cur.execute("""
+        cur.execute(f"""
             SELECT benefit FROM t_p17985067_event_email_automati.kb_content 
-            WHERE event_id = %s AND benefit IS NOT NULL
-        """, (event_id,))
+            WHERE event_id = {safe_event_id} AND benefit IS NOT NULL
+        """)
         benefits = cur.fetchall()
         
         for idx, (benefit,) in enumerate(benefits):
             if benefit and benefit.strip():
-                cur.execute("""
+                benefit_id = escape_sql(f'benefit_{idx}')
+                cur.execute(f"""
                     SELECT COUNT(*) FROM t_p17985067_event_email_automati.kb_embeddings 
-                    WHERE event_id = %s AND content_type = 'benefit' AND content_id = %s
-                """, (event_id, f'benefit_{idx}'))
+                    WHERE event_id = {safe_event_id} AND content_type = 'benefit' AND content_id = {benefit_id}
+                """)
                 
                 if cur.fetchone()[0] == 0:
                     response = client.embeddings.create(
@@ -210,43 +213,33 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     embedding_values = response.data[0].embedding
                     embedding_str = json.dumps(embedding_values)
                     
-                    cur.execute("""
+                    safe_text = escape_sql(benefit)
+                    safe_embedding = escape_sql(embedding_str)
+                    
+                    cur.execute(f"""
                         INSERT INTO t_p17985067_event_email_automati.kb_embeddings 
                         (event_id, content_type, content_id, chunk_text, chunk_metadata, embedding_vector)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (
-                        event_id, 
-                        'benefit', 
-                        f'benefit_{idx}', 
-                        benefit,
-                        json.dumps({}),
-                        embedding_str
-                    ))
+                        VALUES ({safe_event_id}, 'benefit', {benefit_id}, {safe_text}, '{{}}', {safe_embedding})
+                    """)
                     chunks_created += 1
         
-        conn.commit()
+        conn.close()
         
         return {
             'statusCode': 200,
             'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
             'body': json.dumps({
                 'status': 'success',
-                'event_id': event_id,
-                'chunks_created': chunks_created
+                'chunks_created': chunks_created,
+                'message': f'База знаний проиндексирована. Создано {chunks_created} эмбеддингов.'
             }),
             'isBase64Encoded': False
         }
-        
+    
     except Exception as e:
-        conn.rollback() if 'conn' in locals() else None
         return {
             'statusCode': 500,
             'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
             'body': json.dumps({'error': str(e)}),
             'isBase64Encoded': False
         }
-    finally:
-        if 'cur' in locals():
-            cur.close()
-        if 'conn' in locals():
-            conn.close()
