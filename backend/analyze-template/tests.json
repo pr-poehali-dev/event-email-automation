@@ -1,0 +1,37 @@
+{
+  "tests": [
+    {
+      "name": "Analyze webinar email template",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "html_content": "<html><head><title>Вебинар</title></head><body><h1>Увеличьте продажи в 2 раза</h1><p>Приглашаем на вебинар по эффективным продажам</p><h2>Спикер: Иван Петров</h2><p>Эксперт с 10-летним опытом</p><a href='https://example.com/register'>Зарегистрироваться сейчас</a><p>До конца акции осталось 3 дня</p></body></html>"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "blocks_count": "number",
+        "variables": "array",
+        "template_html": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Handle empty HTML",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "html_content": ""
+      },
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "html_content is required"
+      }
+    },
+    {
+      "name": "Handle OPTIONS CORS request",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    }
+  ]
+}

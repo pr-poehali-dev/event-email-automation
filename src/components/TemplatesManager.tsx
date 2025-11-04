@@ -457,7 +457,7 @@ export default function TemplatesManager() {
                     setAnalyzing(true);
                     const htmlContent = event.target?.result as string;
                     
-                    const analyzeResponse = await fetch('https://functions.poehali.dev/45e6f3f6-377e-4e0d-9350-09aa87d3e584', {
+                    const analyzeResponse = await fetch('https://functions.poehali.dev/60ee2249-44e8-40fb-b52f-f1ea30a8a91f', {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json'
@@ -480,9 +480,7 @@ export default function TemplatesManager() {
                           name: file.name,
                           html_content: htmlContent,
                           analyzed_blocks: analysis.variables,
-                          required_variables: analysis.required_variables,
-                          template_with_variables: analysis.template_html,
-                          conditions: analysis.conditions
+                          template_with_variables: analysis.template_html
                         })
                       });
                       
@@ -498,8 +496,9 @@ export default function TemplatesManager() {
                         }));
                         
                         setMappings(defaultMappings);
-                        setSelectedTemplate({...newTemplate, analyzed_blocks: analysis.variables, required_variables: analysis.required_variables});
+                        setSelectedTemplate({...newTemplate, analyzed_blocks: analysis.variables});
                         setAnalyzing(false);
+                        setShowUpload(false);
                       }
                     }
                   } catch (error) {
