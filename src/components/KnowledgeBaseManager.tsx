@@ -115,7 +115,7 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
       if (!vectorizeResponse.ok) {
         const errorText = await vectorizeResponse.text();
         console.error('Vectorization failed:', vectorizeResponse.status, errorText);
-        alert(`❌ Ошибка векторизации:\nStatus: ${vectorizeResponse.status}\nОшибка: ${errorText}\n\nДанные импортированы, но векторизация не выполнена. Проверьте секрет OPENAI_API_KEY в настройках проекта.`);
+        alert(`❌ Ошибка векторизации:\nStatus: ${vectorizeResponse.status}\nОшибка: ${errorText}\n\n📊 Импортировано:\n- Секций: ${importResult.sections_count || 0}\n- Докладов: ${importResult.talks_count || 0}\n- Спикеров: ${importResult.speakers_count || 0}\n\nДанные импортированы в базу, но векторизация не выполнена.`);
         setIndexing(false);
         return;
       }
@@ -123,12 +123,7 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
       const vectorizeResult = await vectorizeResponse.json();
       
       if (vectorizeResult.status === 'success') {
-        const embeddings = vectorizeResult.chunks_created || 0;
-        const message = embeddings > 0 
-          ? `🔍 Создано эмбеддингов: ${embeddings}`
-          : '📝 Данные сохранены в базе знаний';
-        
-        alert(`✅ База знаний проиндексирована!\n\n📊 Импортировано:\n- Секций: ${importResult.sections_count || 0}\n- Докладов: ${importResult.talks_count || 0}\n- Спикеров: ${importResult.speakers_count || 0}\n\n${message}\n\n${vectorizeResult.message || ''}`);
+        alert(`✅ База знаний проиндексирована!\n\n📊 Импортировано:\n- Секций: ${importResult.sections_count || 0}\n- Докладов: ${importResult.talks_count || 0}\n- Спикеров: ${importResult.speakers_count || 0}\n\n🔍 Создано эмбеддингов: ${vectorizeResult.chunks_created}`);
       } else {
         alert(`⚠️ Импорт выполнен, но векторизация не удалась:\n${vectorizeResult.error || JSON.stringify(vectorizeResult)}`);
       }

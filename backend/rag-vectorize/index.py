@@ -1,37 +1,14 @@
 '''
-Business: Vectorize knowledge base content using OpenAI embeddings via HTTP
+Business: Vectorize knowledge base content using OpenAI embeddings
 Args: event with httpMethod, body {event_id, force_refresh}
 Returns: HTTP response with vectorization status
 '''
 import json
 import os
 import psycopg2
-import urllib.request
-import urllib.error
+import openai
+import httpx
 from typing import Dict, Any
-
-def get_embedding(text: str, api_key: str) -> list:
-    """Get embedding from OpenAI API using urllib"""
-    url = "https://api.openai.com/v1/embeddings"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
-    data = {
-        "model": "text-embedding-ada-002",
-        "input": text
-    }
-    
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(data).encode('utf-8'),
-        headers=headers,
-        method='POST'
-    )
-    
-    with urllib.request.urlopen(req, timeout=30) as response:
-        result = json.loads(response.read().decode('utf-8'))
-        return result['data'][0]['embedding']
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method: str = event.get('httpMethod', 'POST')
@@ -69,26 +46,24 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'isBase64Encoded': False
         }
     
-    try:
-        dsn = os.environ.get('DATABASE_URL')
-    except Exception as env_error:
-        return {
-            'statusCode': 500,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': f'Failed to access DATABASE_URL: {str(env_error)}'}),
-            'isBase64Encoded': False
-        }
+    dsn = os.environ['DATABASE_URL']
     
-    if not dsn:
-        return {
-            'statusCode': 500,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'DATABASE_URL is empty or None'}),
-            'isBase64Encoded': False
-        }
+    # Initialize OpenAI client (same way as generate-email)
+    proxy_url = os.environ.get('OPENAI_PROXY_URL', '').strip()
     
-    # Test without OpenAI key
-    openai_key = 'test-key-placeholder'
+    if proxy_url:
+        http_client = httpx.Client(
+            proxies={
+                'http://': proxy_url,
+                'https://': proxy_url
+            }
+        )
+        client = openai.OpenAI(
+            api_key=os.environ['OPENAI_API_KEY'],
+            http_client=http_client
+        )
+    else:
+        client = openai.OpenAI(api_key=os.environ['OPENAI_API_KEY'])
     
     try:
         conn = psycopg2.connect(dsn)
@@ -117,7 +92,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             """, (event_id, speaker_id))
             
             if cur.fetchone()[0] == 0:
-                embedding_values = get_embedding(text, openai_key)
+                response = client.embeddings.create(
+                    model="text-embedding-ada-002",
+                    input=text
+                )
+                embedding_values = response.data[0].embedding
                 embedding_str = json.dumps(embedding_values)
                 
                 cur.execute("""
@@ -152,7 +131,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             """, (event_id, talk_id))
             
             if cur.fetchone()[0] == 0:
-                embedding_values = get_embedding(text, openai_key)
+                response = client.embeddings.create(
+                    model="text-embedding-ada-002",
+                    input=text
+                )
+                embedding_values = response.data[0].embedding
                 embedding_str = json.dumps(embedding_values)
                 
                 cur.execute("""
@@ -169,6 +152,78 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 ))
                 chunks_created += 1
         
+        # Векторизация болей аудитории
+        cur.execute("""
+            SELECT pain_point FROM t_p17985067_event_email_automati.kb_content 
+            WHERE event_id = %s AND pain_point IS NOT NULL
+        """, (event_id,))
+        pain_points = cur.fetchall()
+        
+        for idx, (pain_point,) in enumerate(pain_points):
+            if pain_point and pain_point.strip():
+                cur.execute("""
+                    SELECT COUNT(*) FROM t_p17985067_event_email_automati.kb_embeddings 
+                    WHERE event_id = %s AND content_type = 'pain_point' AND content_id = %s
+                """, (event_id, f'pain_{idx}'))
+                
+                if cur.fetchone()[0] == 0:
+                    response = client.embeddings.create(
+                        model="text-embedding-ada-002",
+                        input=pain_point
+                    )
+                    embedding_values = response.data[0].embedding
+                    embedding_str = json.dumps(embedding_values)
+                    
+                    cur.execute("""
+                        INSERT INTO t_p17985067_event_email_automati.kb_embeddings 
+                        (event_id, content_type, content_id, chunk_text, chunk_metadata, embedding_vector)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (
+                        event_id, 
+                        'pain_point', 
+                        f'pain_{idx}', 
+                        pain_point,
+                        json.dumps({}),
+                        embedding_str
+                    ))
+                    chunks_created += 1
+        
+        # Векторизация выгод и ценности
+        cur.execute("""
+            SELECT benefit FROM t_p17985067_event_email_automati.kb_content 
+            WHERE event_id = %s AND benefit IS NOT NULL
+        """, (event_id,))
+        benefits = cur.fetchall()
+        
+        for idx, (benefit,) in enumerate(benefits):
+            if benefit and benefit.strip():
+                cur.execute("""
+                    SELECT COUNT(*) FROM t_p17985067_event_email_automati.kb_embeddings 
+                    WHERE event_id = %s AND content_type = 'benefit' AND content_id = %s
+                """, (event_id, f'benefit_{idx}'))
+                
+                if cur.fetchone()[0] == 0:
+                    response = client.embeddings.create(
+                        model="text-embedding-ada-002",
+                        input=benefit
+                    )
+                    embedding_values = response.data[0].embedding
+                    embedding_str = json.dumps(embedding_values)
+                    
+                    cur.execute("""
+                        INSERT INTO t_p17985067_event_email_automati.kb_embeddings 
+                        (event_id, content_type, content_id, chunk_text, chunk_metadata, embedding_vector)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (
+                        event_id, 
+                        'benefit', 
+                        f'benefit_{idx}', 
+                        benefit,
+                        json.dumps({}),
+                        embedding_str
+                    ))
+                    chunks_created += 1
+        
         conn.commit()
         
         return {
@@ -182,15 +237,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'isBase64Encoded': False
         }
         
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode('utf-8')
-        conn.rollback() if 'conn' in locals() else None
-        return {
-            'statusCode': 500,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': f'OpenAI API error: {e.code} - {error_body}'}),
-            'isBase64Encoded': False
-        }
     except Exception as e:
         conn.rollback() if 'conn' in locals() else None
         return {
