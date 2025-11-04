@@ -114,9 +114,8 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
 
       if (!vectorizeResponse.ok) {
         const errorText = await vectorizeResponse.text();
-        console.warn('Vectorization failed:', vectorizeResponse.status, errorText);
-        // Показываем успех импорта, даже если векторизация не удалась
-        alert(`✅ База знаний загружена!\n\n📊 Импортировано:\n- Секций: ${importResult.sections_count || 0}\n- Докладов: ${importResult.talks_count || 0}\n- Спикеров: ${importResult.speakers_count || 0}\n\n⚠️ Примечание: векторизация OpenAI временно недоступна, но данные сохранены в базе знаний.`);
+        console.error('Vectorization failed:', vectorizeResponse.status, errorText);
+        alert(`❌ Ошибка векторизации:\nStatus: ${vectorizeResponse.status}\nОшибка: ${errorText}\n\nДанные импортированы, но векторизация не выполнена. Проверьте секрет OPENAI_API_KEY в настройках проекта.`);
         setIndexing(false);
         return;
       }
