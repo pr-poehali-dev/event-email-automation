@@ -81,6 +81,7 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
 
     setIndexing(true);
     try {
+      // Шаг 1: Импорт программы из Google Sheets
       const response = await fetch('https://functions.poehali.dev/f96b53c0-3cc5-422e-83b1-bfd535562125', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,25 +93,38 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
 
       const importResult = await response.json();
       
-      if (response.ok) {
-        const vectorizeResponse = await fetch('https://functions.poehali.dev/9f4f68ea-4d9d-4c55-bd58-9baded263228', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            event_id: event.event_id, 
-            force_refresh: true 
-          })
-        });
-
-        const vectorizeResult = await vectorizeResponse.json();
-        
-        if (vectorizeResult.status === 'success') {
-          alert(`✅ База знаний проиндексирована!\n\n📊 Импортировано:\n- Секций: ${importResult.sections_count || 0}\n- Докладов: ${importResult.talks_count || 0}\n- Спикеров: ${importResult.speakers_count || 0}\n\n🔍 Создано эмбеддингов: ${vectorizeResult.chunks_created}`);
-        } else {
-          alert('⚠️ Импорт выполнен, но векторизация не удалась');
-        }
-      } else {
+      if (!response.ok) {
         alert('❌ Ошибка импорта: ' + importResult.error);
+        setIndexing(false);
+        return;
+      }
+
+      // Шаг 2: Сохранение дополнительных полей (боли, выгоды, CTA и т.д.)
+      // Здесь можно добавить сохранение в kb_content через API
+
+      // Шаг 3: Векторизация всех данных
+      const vectorizeResponse = await fetch('https://functions.poehali.dev/9f4f68ea-4d9d-4c55-bd58-9baded263228', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          event_id: event.event_id, 
+          force_refresh: true 
+        })
+      });
+
+      if (!vectorizeResponse.ok) {
+        const errorText = await vectorizeResponse.text();
+        alert(`⚠️ Импорт выполнен, но векторизация не удалась:\nStatus: ${vectorizeResponse.status}\nError: ${errorText}`);
+        setIndexing(false);
+        return;
+      }
+
+      const vectorizeResult = await vectorizeResponse.json();
+      
+      if (vectorizeResult.status === 'success') {
+        alert(`✅ База знаний проиндексирована!\n\n📊 Импортировано:\n- Секций: ${importResult.sections_count || 0}\n- Докладов: ${importResult.talks_count || 0}\n- Спикеров: ${importResult.speakers_count || 0}\n\n🔍 Создано эмбеддингов: ${vectorizeResult.chunks_created}`);
+      } else {
+        alert(`⚠️ Импорт выполнен, но векторизация не удалась:\n${vectorizeResult.error || JSON.stringify(vectorizeResult)}`);
       }
     } catch (error) {
       alert('❌ Ошибка: ' + error);
