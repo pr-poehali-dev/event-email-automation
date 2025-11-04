@@ -45,6 +45,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         }
     
     dsn = os.environ.get('DATABASE_URL')
+    openai_key = os.environ.get('OPENAI_API_KEY')
     
     if not dsn:
         return {
@@ -93,6 +94,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'talks_found': talks_count,
                 'embeddings_existing': embeddings_count,
                 'chunks_created': 0,
+                'openai_key_available': openai_key is not None,
+                'openai_key_length': len(openai_key) if openai_key else 0,
                 'message': 'Test mode: OpenAI calls disabled, database check only'
             }),
             'isBase64Encoded': False
