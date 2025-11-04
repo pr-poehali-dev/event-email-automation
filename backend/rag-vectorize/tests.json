@@ -1,15 +1,18 @@
 {
   "tests": [
     {
-      "name": "Check vectorize endpoint responds",
+      "name": "Vectorize knowledge base",
       "method": "POST",
       "path": "/",
       "body": {
-        "event_id": "nonexistent-event-test"
+        "event_id": "human24",
+        "force_refresh": false
       },
       "expectedStatus": 200,
       "expectedBody": {
-        "status": "success"
+        "status": "success",
+        "event_id": "string",
+        "chunks_created": "number"
       },
       "bodyMatcher": "partial"
     }
