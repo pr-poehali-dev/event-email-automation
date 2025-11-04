@@ -21,10 +21,12 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
     benefits: '',
     targetAudience: '',
     linkedTemplates: [] as number[],
-    ctas: { top: '', bottom: '' }
+    ctas: { top: '', bottom: '' },
+    logoUrl: ''
   });
   const [indexing, setIndexing] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -39,6 +41,35 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
       }
     } catch (error) {
       console.error('Failed to load templates:', error);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('⚠️ Выберите файл изображения');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('⚠️ Размер файла не должен превышать 5 МБ');
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+        setKnowledgeData({ ...knowledgeData, logoUrl: base64 });
+        setUploadingLogo(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      alert('❌ Ошибка загрузки: ' + error);
+      setUploadingLogo(false);
     }
   };
 
@@ -157,6 +188,95 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
           </section>
 
           <section style={{ 
+            background: 'linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%)', 
+            padding: '1.5rem', 
+            borderRadius: '12px',
+            border: '2px solid #A78BFA'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <Icon name="Image" size={24} style={{ color: '#A78BFA' }} />
+              <h4 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>
+                2. Логотип мероприятия (опционально)
+              </h4>
+            </div>
+            <p style={{ color: '#475569', fontSize: '0.875rem', marginBottom: '1rem' }}>
+              Загрузите логотип для использования в письмах (PNG, JPG, до 5 МБ)
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              {knowledgeData.logoUrl && (
+                <div style={{
+                  width: '120px',
+                  height: '120px',
+                  borderRadius: '12px',
+                  border: '2px solid #A78BFA',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'white'
+                }}>
+                  <img 
+                    src={knowledgeData.logoUrl} 
+                    alt="Логотип" 
+                    style={{ 
+                      maxWidth: '100%', 
+                      maxHeight: '100%',
+                      objectFit: 'contain'
+                    }} 
+                  />
+                </div>
+              )}
+              <div style={{ flex: 1 }}>
+                <label style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.875rem 1.5rem',
+                  background: uploadingLogo ? '#E9D5FF' : 'linear-gradient(135deg, #A78BFA 0%, #8B5CF6 100%)',
+                  color: 'white',
+                  borderRadius: '8px',
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  cursor: uploadingLogo ? 'wait' : 'pointer',
+                  border: 'none'
+                }}>
+                  <Icon name={uploadingLogo ? "Loader" : "Upload"} size={18} />
+                  {uploadingLogo ? 'Загрузка...' : knowledgeData.logoUrl ? 'Заменить логотип' : 'Загрузить логотип'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    disabled={uploadingLogo}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+                {knowledgeData.logoUrl && (
+                  <button
+                    onClick={() => setKnowledgeData({ ...knowledgeData, logoUrl: '' })}
+                    style={{
+                      marginLeft: '1rem',
+                      padding: '0.875rem 1.5rem',
+                      background: '#FEE2E2',
+                      color: '#DC2626',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <Icon name="Trash2" size={18} />
+                    Удалить
+                  </button>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section style={{ 
             background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)', 
             padding: '1.5rem', 
             borderRadius: '12px',
@@ -165,7 +285,7 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
               <Icon name="AlertCircle" size={24} style={{ color: '#F59E0B' }} />
               <h4 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>
-                2. Боли аудитории (опционально)
+                3. Боли аудитории (опционально)
               </h4>
             </div>
             <p style={{ color: '#475569', fontSize: '0.875rem', marginBottom: '1rem' }}>
@@ -212,7 +332,7 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
               <Icon name="Sparkles" size={24} style={{ color: '#10B981' }} />
               <h4 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>
-                3. Выгоды и ценность (опционально)
+                4. Выгоды и ценность (опционально)
               </h4>
             </div>
             <textarea
@@ -241,7 +361,7 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
               <Icon name="FileText" size={24} style={{ color: '#8B5CF6' }} />
               <h4 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>
-                4. Шаблоны для валидации (опционально)
+                5. Шаблоны для валидации (опционально)
               </h4>
             </div>
             <p style={{ color: '#475569', fontSize: '0.875rem', marginBottom: '1rem' }}>
@@ -302,7 +422,7 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
               <Icon name="Target" size={24} style={{ color: '#EC4899' }} />
               <h4 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>
-                5. Целевая аудитория (опционально)
+                6. Целевая аудитория (опционально)
               </h4>
             </div>
             <input
@@ -330,7 +450,7 @@ export default function KnowledgeBaseManager({ event, onClose }: KnowledgeBaseMa
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
               <Icon name="MousePointer" size={24} style={{ color: '#EF4444' }} />
               <h4 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>
-                6. CTA по умолчанию (опционально)
+                7. CTA по умолчанию (опционально)
               </h4>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
