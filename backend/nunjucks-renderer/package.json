@@ -1,7 +1,0 @@
-{
-  "name": "nunjucks-renderer",
-  "version": "1.0.0",
-  "dependencies": {
-    "nunjucks": "^3.2.4"
-  }
-}
